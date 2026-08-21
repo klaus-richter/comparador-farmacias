@@ -32,51 +32,33 @@ async def buscar_cruzverde(producto: str, max_resultados: int = 6) -> list[dict]
                 const results = [];
                 const links = Array.from(document.querySelectorAll('a[href*=".html"]'));
                 for (const link of links) {
-                    const href = link.getAttribute('href') || '';
-                    if (!href || !href.endsWith('.html')) continue;
-
-                    let curr = link;
-                    let text = '';
-                    for (let i = 0; i < 6; i++) {
-                        if (curr) {
-                            text = curr.innerText || '';
-                            if (text.includes('$')) break;
-                            curr = curr.parentElement;
-                        }
-                    }
-
-                    const prices = (text || '').match(/\\$\\s*[\\d\\.]+/g);
+                    const card = link.closest('div[class*="flex-col"], [class*="product"], [class*="card"]') || link.parentElement;
+                    const text = (card ? card.innerText : link.innerText).trim();
+                    const prices = text.match(/\\$\\s*[\\d\\.]+/g);
                     if (prices && prices.length > 0) {
-                        const linkText = link.innerText.trim();
-                        let name = linkText;
-
-                        // Si el link actual no tiene texto (ej: link sobre imagen), buscar en el bloque
-                        if (!name) {
-                            const lines = text.split('\\n').map(l => l.trim()).filter(Boolean);
-                            name = lines.find(l => !l.includes('$') && !l.includes('%') && l.length > 3) || '';
+                        const href = link.getAttribute('href') || '';
+                        
+                        let slugName = '';
+                        const slugMatch = href.match(/\\/([a-zA-Z0-9\\-]+)\\/\\d+\\.html/);
+                        if (slugMatch) {
+                            slugName = slugMatch[1].replace(/--+/g, ' - ').replace(/-/g, ' ');
+                            slugName = slugName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
                         }
 
-                        // Fallback por slug si el texto falló
-                        if (!name) {
-                            const slugMatch = href.match(/\\/([a-zA-Z0-9\\-]+)\\/\\d+\\.html/);
-                            if (slugMatch) {
-                                name = slugMatch[1]
-                                    .replace(/-/g, ' ')
-                                    .split(' ')
-                                    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-                                    .join(' ');
-                            }
+                        const lines = text.split('\\n').map(l => l.trim()).filter(Boolean);
+                        const brand = lines.length > 0 && !lines[0].includes('$') && lines[0].length < 30 ? lines[0] : '';
+                        
+                        let finalName = slugName || (lines.find(l => !l.includes('$') && l.length > 3) || 'Medicamento');
+                        if (brand && slugName && !slugName.toLowerCase().includes(brand.toLowerCase())) {
+                            finalName = `${brand} - ${slugName}`;
                         }
 
                         const fullHref = href.startsWith('http') ? href : `https://www.cruzverde.cl${href.startsWith('/') ? '' : '/'}${href}`;
                         
-                        // Usar el precio con descuento si existe (último precio listado)
-                        const bestPrice = prices[prices.length - 1];
-
-                        if (name && !results.some(r => r.href === fullHref)) {
+                        if (!results.some(r => r.href === fullHref)) {
                             results.push({
-                                name: name,
-                                priceText: bestPrice,
+                                name: finalName,
+                                priceText: prices[prices.length - 1],
                                 href: fullHref
                             });
                         }
