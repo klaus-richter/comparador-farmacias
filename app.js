@@ -370,7 +370,16 @@ searchForm.addEventListener("submit", async (e) => {
   const rawQuery = searchInput.value.trim();
   if (!rawQuery) return;
 
-  const queryItems = rawQuery.split(/[,;\n]+/).map(s => s.trim()).filter(Boolean);
+  let queryItems = rawQuery.split(/[,;\n]+/).map(s => s.trim()).filter(Boolean);
+
+  // Limitar a 3 medicamentos máximo
+  if (queryItems.length > 3) {
+    queryItems = queryItems.slice(0, 3);
+    searchInput.value = queryItems.join(", ");
+    showErrorStatus("⚠️ Máximo 3 medicamentos por búsqueda. Se tomaron los primeros 3.");
+    setTimeout(() => { statusBar.style.display = "none"; }, 3500);
+  }
+
   const isMultiple = queryItems.length > 1;
 
   resultsWrapper.style.display = "none";
@@ -385,10 +394,10 @@ searchForm.addEventListener("submit", async (e) => {
       const data = await res.json();
       if (data.status === "ok") { stopWaitingAnimation(); renderRecipeComparison(data.receta, queryItems); }
     } else {
-      const res = await fetch(`${API}/api/buscar?q=${encodeURIComponent(rawQuery)}`);
+      const res = await fetch(`${API}/api/buscar?q=${encodeURIComponent(queryItems[0])}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       const data = await res.json();
-      if (data.status === "ok") { stopWaitingAnimation(); renderSingleComparison(data.resultados, rawQuery); }
+      if (data.status === "ok") { stopWaitingAnimation(); renderSingleComparison(data.resultados, queryItems[0]); }
     }
   } catch (err) {
     showErrorStatus(`Error conectando con el backend: ${err.message}`);
@@ -397,3 +406,4 @@ searchForm.addEventListener("submit", async (e) => {
     searchBtn.querySelector(".btn-text").textContent = "Comparar precios";
   }
 });
+
