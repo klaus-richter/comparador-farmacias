@@ -66,7 +66,7 @@ async def buscar(q: str = Query(..., description="Nombre del producto")):
 @app.get("/api/buscar-receta")
 async def buscar_receta(q: str = Query(..., description="Medicamentos separados por coma")):
     start = time.time()
-    productos = [p.strip() for p in q.replace("\n", ",").split(",") if p.strip()]
+    productos = [p.strip() for p in q.replace("\n", ",").split(",") if p.strip()][:3]
 
     tasks = [buscar_un_producto(p) for p in productos]
     desglose = await asyncio.gather(*tasks, return_exceptions=True)
