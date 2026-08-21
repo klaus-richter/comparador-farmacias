@@ -16,7 +16,7 @@ body {
 
 .app {
   width: 100%;
-  max-width: 1250px;
+  max-width: 1550px;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -25,37 +25,52 @@ body {
 /* Header */
 .hero {
   text-align: center;
-  padding: 4px 0;
+  padding: 12px 0 6px;
 }
 
 .logo-badge {
   display: inline-block;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 800;
   letter-spacing: 0.08em;
   color: #2563eb;
   background: #dbeafe;
-  padding: 4px 12px;
+  padding: 5px 14px;
   border-radius: 20px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .hero h1 {
-  font-size: 2.1rem;
+  font-size: 2.35rem;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: #0f172a;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .hero-instructions {
   color: #475569;
-  font-size: 1.05rem;
+  font-size: 1.15rem;
   font-weight: 500;
 }
 
 .hero-instructions strong {
   color: #0f172a;
+}
+
+.hero-subtitle {
+  color: #64748b;
+  font-size: 0.95rem;
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+/* Label arriba del buscador */
+.search-label {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: -10px;
 }
 
 /* Search Box */
@@ -68,6 +83,7 @@ body {
   border: 1.5px solid #cbd5e1;
   box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
   transition: border-color 0.2s;
+  width: 100%;
 }
 
 .search-box:focus-within {
@@ -136,7 +152,9 @@ body {
   align-items: center;
   gap: 14px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  width: 100%;
 }
+
 
 .status-bar.info {
   border-left: 4px solid #3b82f6;
