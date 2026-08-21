@@ -27,46 +27,37 @@ async def buscar_ahumada(producto: str, max_resultados: int = 6) -> list[dict]:
 
             items_data = await page.evaluate('''() => {
                 const results = [];
-                const tiles = document.querySelectorAll('.product-tile');
+                // Buscar solo en la grilla de resultados de búsqueda, ignorando carruseles recomendados
+                const grid = document.querySelector('.product-grid, .search-results') || document;
+                const tiles = grid.querySelectorAll('.product-tile');
                 for (const t of tiles) {
-                    // El nombre en Ahumada está en .pdp-link a
+                    if (t.closest('.carousel, [class*="recommendation"], [class*="sponsored"]')) continue;
+                    
                     const nameEl = t.querySelector('.pdp-link a');
                     const linkEl = t.querySelector('.pdp-link a, a[href*=".html"]');
                     const href = linkEl ? linkEl.getAttribute('href') : '';
-
-                    let name = nameEl ? nameEl.innerText.trim() : '';
                     
-                    // Fallback: extraer del slug de la URL
+                    let name = nameEl ? nameEl.innerText.trim() : '';
                     if (!name && href) {
                         const slugMatch = href.match(/\\/([a-zA-Z0-9\\-]+)-\\d+\\.html/);
                         if (slugMatch) {
-                            name = slugMatch[1]
-                                .replace(/-/g, ' ')
-                                .split(' ')
-                                .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-                                .join(' ');
+                            name = slugMatch[1].replace(/-/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
                         }
                     }
 
-                    if (!name) continue;
-
+                    const salesEl = t.querySelector('.sales .value, .price .value, .sales, .price');
                     const text = t.innerText || '';
                     const prices = text.match(/\\$\\s*[\\d\\.]+/g);
-                    
-                    // Precio de oferta: el elemento .sales o .price
-                    const salesEl = t.querySelector('.sales .value, .price .value, .sales, .price');
-                    let priceText = salesEl ? salesEl.innerText.trim() : '';
-                    if (!priceText && prices && prices.length > 0) {
-                        // Tomar el precio más bajo
-                        const nums = prices.map(p => parseInt(p.replace(/[^\\d]/g, '')));
-                        const minIdx = nums.indexOf(Math.min(...nums));
-                        priceText = prices[minIdx];
-                    }
+                    const priceText = salesEl ? salesEl.innerText.trim() : (prices && prices.length > 0 ? prices[0] : '');
 
                     if (name && priceText) {
                         const fullHref = href ? (href.startsWith('http') ? href : `https://www.farmaciasahumada.cl${href.startsWith('/') ? '' : '/'}${href}`) : '';
                         if (!results.some(r => r.name === name && r.href === fullHref)) {
-                            results.push({ name, priceText, href: fullHref });
+                            results.push({
+                                name,
+                                priceText,
+                                href: fullHref
+                            });
                         }
                     }
                 }
