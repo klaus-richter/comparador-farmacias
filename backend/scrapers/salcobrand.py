@@ -23,42 +23,31 @@ async def buscar_salcobrand(producto: str, max_resultados: int = 6) -> list[dict
             page = await context.new_page()
 
             await page.goto(url, wait_until="domcontentloaded", timeout=20000)
+            await page.wait_for_timeout(3000)
             try:
-                await page.wait_for_selector(".product-info, .product-name", timeout=8000)
+                await page.wait_for_selector('.product-info', timeout=6000)
             except PlaywrightTimeout:
                 await page.wait_for_timeout(2000)
 
             items_data = await page.evaluate("""
                 () => {
                     const data = [];
-                    const nodes = document.querySelectorAll('.product-info');
+                    const nodes = document.querySelectorAll('.product-info, .product-item, .product, [class*="product-card"]');
                     for (const node of nodes) {
-                        const parent = node.closest('.product, [class*="product-item"], .col-xs-6, .col-sm-4') || node.parentElement.parentElement;
-                        if (!parent) continue;
-
-                        const brandEl = parent.querySelector('.product-name');
-                        const infoEl = parent.querySelector('.product-info');
+                        const brandEl = node.querySelector('.product-name, [class*="brand"]');
+                        const infoEl = node.querySelector('.product-info, [class*="name"], [class*="info"], h3, h2, a');
                         const brand = brandEl ? brandEl.innerText.trim() : '';
                         const info = infoEl ? infoEl.innerText.trim() : '';
+                        const name = (brand && !info.toLowerCase().includes(brand.toLowerCase())) ? `${brand} - ${info}` : (info || brand || 'Medicamento');
 
-                        // Nombre del producto: combinar marca + info
-                        const name = (brand && info && !info.toLowerCase().includes(brand.toLowerCase()))
-                            ? `${brand} ${info}`
-                            : (info || brand || 'Medicamento');
+                        const priceEl = node.querySelector('.display-offer-price, .display-secoundary-price-normal, .price, [class*="price"]');
+                        const priceText = priceEl ? priceEl.innerText.trim() : (node.innerText.match(/\\$\\s*[\\d\\.]+/)?.[0] || '');
 
-                        const offerEl = parent.querySelector('.display-offer-price');
-                        const normalEl = parent.querySelector('.display-secoundary-price-normal, .price, [class*="price"]');
-                        const priceText = (offerEl && offerEl.innerText.trim())
-                            ? offerEl.innerText.trim()
-                            : (normalEl ? normalEl.innerText.trim() : '');
-
-                        const linkEl = parent.querySelector('a');
+                        const linkEl = node.querySelector('a');
                         const href = linkEl ? linkEl.getAttribute('href') : '';
 
                         if (name && priceText) {
-                            const fullHref = href
-                                ? (href.startsWith('http') ? href : `https://salcobrand.cl${href.startsWith('/') ? '' : '/'}${href}`)
-                                : '';
+                            const fullHref = href ? (href.startsWith('http') ? href : `https://salcobrand.cl${href.startsWith('/') ? '' : '/'}${href}`) : '';
                             if (!data.some(d => d.name === name && d.href === fullHref)) {
                                 data.push({ name, priceText, href: fullHref });
                             }
@@ -69,9 +58,9 @@ async def buscar_salcobrand(producto: str, max_resultados: int = 6) -> list[dict
             """)
 
             for item in items_data[:max_resultados]:
-                # El precio de oferta viene primero, luego el normal
-                m = re.search(r'\$\s*[\d\.]+', item["priceText"])
-                precio = m.group(0).replace(" ", "") if m else item["priceText"]
+                m = re.findall(r'\$\s*[\d\.]+', item["priceText"])
+                # Escoger el precio más bajo entre oferta y normal
+                precio = m[-1].replace(" ", "") if m else item["priceText"]
 
                 resultados.append({
                     "nombre": item["name"],
