@@ -29,6 +29,10 @@ async def buscar_ecofarmacias(producto: str, max_resultados: int = 6) -> list[di
             hits = data.get("hits", [])
 
             for hit in hits:
+                # Descartar productos agotados o sin stock / sin existencias
+                if hit.get("in_stock") is False:
+                    continue
+
                 name = hit.get("name", "").strip()
                 # Limpiar tags <mark> si vienen
                 name = re.sub(r'</?mark>', '', name)
@@ -51,7 +55,7 @@ async def buscar_ecofarmacias(producto: str, max_resultados: int = 6) -> list[di
                         "nombre": name,
                         "precio": precio_str,
                         "url": url,
-                        "disponible": hit.get("in_stock", True),
+                        "disponible": True,
                         "fuente": "Ecofarmacias"
                     })
 
