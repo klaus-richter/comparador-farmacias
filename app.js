@@ -1,7 +1,7 @@
 // Configuración de API (soporta local y despliegue en la nube para GitHub Pages)
 const API = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
   ? "http://localhost:8000"
-  : "https://comparador-farmacias-backend.onrender.com"; // Cambiar por tu URL de Render o Railway
+  : "https://comparador-farmacias-1.onrender.com";
 
 const statusBar = document.getElementById("status-bar");
 const spinner = document.getElementById("spinner");
