@@ -33,6 +33,9 @@ async def buscar_ahumada(producto: str, max_resultados: int = 6) -> list[dict]:
                 for (const t of tiles) {
                     if (t.closest('.carousel, [class*="recommendation"], [class*="sponsored"]')) continue;
                     
+                    const text = t.innerText || '';
+                    if (/agotado|sin\\s*stock|sin\\s*existencias|no\\s*disponible|out-of-stock/i.test(text)) continue;
+
                     const nameEl = t.querySelector('.pdp-link a');
                     const linkEl = t.querySelector('.pdp-link a, a[href*=".html"]');
                     const href = linkEl ? linkEl.getAttribute('href') : '';
@@ -46,7 +49,6 @@ async def buscar_ahumada(producto: str, max_resultados: int = 6) -> list[dict]:
                     }
 
                     const salesEl = t.querySelector('.sales .value, .price .value, .sales, .price');
-                    const text = t.innerText || '';
                     const prices = text.match(/\\$\\s*[\\d\\.]+/g);
                     const priceText = salesEl ? salesEl.innerText.trim() : (prices && prices.length > 0 ? prices[0] : '');
 
