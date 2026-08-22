@@ -118,12 +118,10 @@ async def buscar_receta(
     start = time.time()
     productos = [p.strip() for p in q.replace("\n", ",").split(",") if p.strip()][:5]
 
-    tasks = [buscar_un_producto(p, force_refresh=bool(refresh)) for p in productos]
-    desglose = await asyncio.gather(*tasks, return_exceptions=True)
-
     res_final = []
     todos_cacheados = True
-    for d in desglose:
+    for p in productos:
+        d = await buscar_un_producto(p, force_refresh=bool(refresh))
         if isinstance(d, dict):
             res_final.append(d)
             if not d.get("cached", False):
