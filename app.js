@@ -274,23 +274,18 @@ function renderRecipeComparison(receta, queryList) {
       <div class="col-recipe-items">
         ${pharmacy.itemsByProd.map(item => `
           <div class="recipe-item-card ${item.isCheapestHere ? "cheapest-item" : ""}">
-            <div class="recipe-item-info">
-              <div class="recipe-item-name-row">
-                <span class="recipe-prod-tag">${escapeHtml(item.productoBuscado)}</span>
-                ${item.isCheapestHere ? '<span class="star-badge">⭐</span>' : ""}
-              </div>
-              <div class="recipe-item-price-row">
+            <div class="recipe-item-head">
+              <span class="recipe-prod-tag">${escapeHtml(item.productoBuscado)}</span>
+              <div class="recipe-item-right">
                 <span class="recipe-prod-price ${item.isCheapestHere ? "cheapest-price" : ""} ${!item.bestItem ? "price-no-stock" : ""}">
-                  ${item.bestItem ? item.bestItem.precio : "Sin stock"}
+                  ${item.isCheapestHere ? '<span class="star-badge">⭐</span>' : ""}${item.bestItem ? item.bestItem.precio : "Sin stock"}
                 </span>
+                ${item.bestItem && item.bestItem.url ? `
+                  <a href="${item.bestItem.url}" target="_blank" rel="noopener noreferrer" class="icon-link-btn" title="Ver producto en la farmacia">
+                    ↗
+                  </a>
+                ` : `<span class="icon-placeholder"></span>`}
               </div>
-            </div>
-            <div class="recipe-item-link-col">
-              ${item.bestItem && item.bestItem.url ? `
-                <a href="${item.bestItem.url}" target="_blank" rel="noopener noreferrer" class="recipe-link-btn" title="Ver producto en farmacia">
-                  Link
-                </a>
-              ` : ""}
             </div>
           </div>
         `).join("")}
