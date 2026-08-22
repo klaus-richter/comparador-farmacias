@@ -101,12 +101,19 @@ async def _scrape_page_drsimi(page, producto: str) -> List[Dict[str, Any]]:
         const results = [];
         const cards = document.querySelectorAll('.vtex-product-summary-2-x-container, [class*="product-summary"], article');
         for (const c of cards) {
+            const cardText = c.innerText || '';
+            if (/agotado|sin\\s*stock|sin\\s*existencia|no\\s*disponible/i.test(cardText)) continue;
+
             const brandEl = c.querySelector('[class*="productBrand"], span[class*="brand"]');
             const nameEl = c.querySelector('[class*="productName"], [class*="product-name"], h3, a');
             const brand = brandEl ? brandEl.innerText.trim() : '';
             const nameOnly = nameEl ? nameEl.innerText.trim() : '';
             const fullName = (brand && nameOnly && !nameOnly.toLowerCase().includes(brand.toLowerCase())) ? `${brand} - ${nameOnly}` : (nameOnly || brand);
-            const priceEl = c.querySelector('[class*="sellingPriceValue"], [class*="currencyContainer"], [class*="price_"]');
+            
+            // Ignorar banners promocionales que no son medicamentos (ej: Club de amigos)
+            if (/club de amigos|catalogo|promocion/i.test(fullName)) continue;
+
+            const priceEl = c.querySelector('[class*="sellingPriceValue"], [class*="currencyContainer"], [class*="price_"], [class*="sellingPrice"]');
             const priceText = priceEl ? priceEl.innerText.trim() : '';
             const linkEl = c.querySelector('a');
             const href = linkEl ? linkEl.getAttribute('href') : '';
