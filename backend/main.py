@@ -48,12 +48,11 @@ async def buscar_un_producto(prod: str, force_refresh: bool = False):
                 if not tiene_items:
                     diag = cobertura_detalle.get(cadena, {})
                     status = diag.get("status", "")
-                    # Si no está explícitamente confirmado como SIN_STOCK, re-intentar en vivo esa farmacia
-                    if status != "SIN_STOCK":
-                        farmacias_a_sanar.append(cadena)
+                    # Si no tiene items o tuvo error previo, re-intentar en vivo esa farmacia para no dejar falsos sin stock
+                    farmacias_a_sanar.append(cadena)
 
             if farmacias_a_sanar:
-                print(f"[Auto-Healing] Disparando fallback en vivo para '{prod}' en farmacias: {farmacias_a_sanar}")
+                print(f"[Auto-Healing Seguro] Re-escaneando '{prod}' en: {farmacias_a_sanar} para descartar falso sin stock")
                 nuevos_items, nuevo_detalle = await scrapear_farmacias_especificas(prod, farmacias_a_sanar, max_retries=2)
                 cobertura_detalle.update(nuevo_detalle)
 
