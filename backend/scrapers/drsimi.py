@@ -29,6 +29,9 @@ async def buscar_drsimi(producto: str, max_resultados: int = 6) -> list[dict]:
                 const results = [];
                 const cards = document.querySelectorAll('.vtex-product-summary-2-x-container, [class*="product-summary"], article');
                 for (const c of cards) {
+                    const cardText = c.innerText || '';
+                    if (/agotado|sin\\s*stock|sin\\s*existencia|sin\\s*existencias|no\\s*disponible|out-of-stock/i.test(cardText)) continue;
+
                     const brandEl = c.querySelector('[class*="productBrand"], span[class*="brand"]');
                     const nameEl = c.querySelector('[class*="productName"], [class*="product-name"], h3, h2, a span');
                     const brand = brandEl ? brandEl.innerText.trim() : '';
