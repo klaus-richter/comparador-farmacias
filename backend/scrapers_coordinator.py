@@ -21,9 +21,10 @@ async def get_shared_browser():
                 args=[
                     "--disable-blink-features=AutomationControlled",
                     "--no-sandbox",
+                    "--disable-setuid-sandbox",
                     "--disable-dev-shm-usage",
                     "--disable-gpu",
-                    "--single-process"
+                    "--no-zygote"
                 ]
             )
         return _SHARED_BROWSER
