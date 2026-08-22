@@ -32,24 +32,104 @@ async def buscar_salcobrand(producto: str, max_resultados: int = 6) -> list[dict
             items_data = await page.evaluate("""
                 () => {
                     const data = [];
-                    const nodes = document.querySelectorAll('.product-info, .product-item, .product, [class*="product-card"]');
+                    // Solo seleccionar tarjetas de producto principales para evitar duplicados internos
+                    const nodes = document.querySelectorAll('.product, .product-item, [class*="product-card"]');
                     for (const node of nodes) {
+                        const linkEl = node.querySelector('a[href*="/products/"]');
+                        if (!linkEl) continue;
+                        const href = linkEl.getAttribute('href') || '';
+
                         const brandEl = node.querySelector('.product-name, [class*="brand"]');
-                        const infoEl = node.querySelector('.product-info, [class*="name"], [class*="info"], h3, h2, a');
+                        const infoEl = node.querySelector('.product-info, [class*="product-info"], [class*="name"], h3, h2');
                         const brand = brandEl ? brandEl.innerText.trim() : '';
                         const info = infoEl ? infoEl.innerText.trim() : '';
-                        const name = (brand && !info.toLowerCase().includes(brand.toLowerCase())) ? `${brand} - ${info}` : (info || brand || 'Medicamento');
+                        let name = (brand && info && !info.toLowerCase().includes(brand.toLowerCase())) 
+                            ? `${brand} - ${info}` 
+                            : (info || brand || 'Medicamento');
+                        // Asegurar nombre limpio
+                        // Descartar productos agotados o sin existencias
+                        const nodeText = node.innerText || '';
+                        if (/agotado|sin\\s*stock|sin\\s*existencia|sin\\s*existencias|no\\s*disponible|out-of-stock/i.test(nodeText)) continue;
 
-                        const priceEl = node.querySelector('.display-offer-price, .display-secoundary-price-normal, .price, [class*="price"]');
-                        const priceText = priceEl ? priceEl.innerText.trim() : (node.innerText.match(/\\$\\s*[\\d\\.]+/)?.[0] || '');
+                        // Extracción estricta de "Precio Farmacia" / Envase completo
+                        // 1. Descartar explícitamente elementos de precio unitario / fraccionado y precio tarjeta SbPay
+                        const ignoreEls = node.querySelectorAll('.jss2, .jss7, [class*="unit-price"], [class*="price-per-unit"], [class*="unit_price"], .display-card-price, [class*="card-price"]');
+                        ignoreEls.forEach(el => el.setAttribute('data-ignore-price', 'true'));
 
-                        const linkEl = node.querySelector('a');
-                        const href = linkEl ? linkEl.getAttribute('href') : '';
+                        // 2. Prioridad 1: Buscar explícitamente "Precio Farmacia" / Precio Normal
+                        const farmaciaSelectors = [
+                            '.display-secoundary-price-normal',
+                            '.display-secondary-price-normal',
+                            '.display-normal-price',
+                            '.display-price-normal',
+                            '[class*="secoundary"]',
+                            '[class*="secondary"]'
+                        ];
 
-                        if (name && priceText) {
-                            const fullHref = href ? (href.startsWith('http') ? href : `https://salcobrand.cl${href.startsWith('/') ? '' : '/'}${href}`) : '';
-                            if (!data.some(d => d.name === name && d.href === fullHref)) {
-                                data.push({ name, priceText, href: fullHref });
+                        let selectedPrice = null;
+                        for (const sel of farmaciaSelectors) {
+                            const el = node.querySelector(sel);
+                            if (el && el.getAttribute('data-ignore-price') !== 'true') {
+                                const text = (el.innerText || '').trim();
+                                if (!/x\\s*1|\\/c[aá]p|\\/comp|\\/un|\\/dosis|unitario|fraccionad/i.test(text)) {
+                                    const m = text.match(/\\$\\s*[\\d\\.]+/);
+                                    if (m) {
+                                        const num = parseInt(m[0].replace(/[^\\d]/g, ''), 10);
+                                        if (num > 0) {
+                                            selectedPrice = { str: m[0].replace(/\\s+/g, ''), num };
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // 3. Prioridad 2: Si no tiene selector secundario, buscar precio oferta / general (sin tarjeta)
+                        if (!selectedPrice) {
+                            const fallbackSelectors = [
+                                '.display-offer-price',
+                                '.product-prices .price',
+                                '.product-prices span:not([data-ignore-price="true"])'
+                            ];
+                            for (const sel of fallbackSelectors) {
+                                const el = node.querySelector(sel);
+                                if (el && el.getAttribute('data-ignore-price') !== 'true') {
+                                    const text = (el.innerText || '').trim();
+                                    if (!/x\\s*1|\\/c[aá]p|\\/comp|\\/un|\\/dosis|unitario|fraccionad/i.test(text)) {
+                                        const m = text.match(/\\$\\s*[\\d\\.]+/);
+                                        if (m) {
+                                            const num = parseInt(m[0].replace(/[^\\d]/g, ''), 10);
+                                            if (num > 0) {
+                                                selectedPrice = { str: m[0].replace(/\\s+/g, ''), num };
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // 4. Fallback por texto plano descartando precios de tarjeta o unitarios
+                        if (!selectedPrice) {
+                            const rawText = node.innerText || '';
+                            const lines = rawText.split('\\n');
+                            for (const line of lines) {
+                                if (/x\\s*1|\\/c[aá]p|\\/comp|\\/un|\\/dosis|unitario|fraccionad|sbpay|tarjeta/i.test(line)) continue;
+                                const m = line.match(/\\$\\s*[\\d\\.]+/);
+                                if (m) {
+                                    const num = parseInt(m[0].replace(/[^\\d]/g, ''), 10);
+                                    if (num > 0) {
+                                        selectedPrice = { str: m[0].replace(/\\s+/g, ''), num };
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        if (name && selectedPrice) {
+                            const fullHref = href.startsWith('http') ? href : `https://salcobrand.cl${href.startsWith('/') ? '' : '/'}${href}`;
+                            if (!data.some(d => d.href === fullHref)) {
+                                data.push({ name, priceText: selectedPrice.str, href: fullHref });
                             }
                         }
                     }
@@ -58,15 +138,11 @@ async def buscar_salcobrand(producto: str, max_resultados: int = 6) -> list[dict
             """)
 
             for item in items_data[:max_resultados]:
-                m = re.findall(r'\$\s*[\d\.]+', item["priceText"])
-                # Escoger el precio más bajo entre oferta y normal
-                precio = m[-1].replace(" ", "") if m else item["priceText"]
-
                 resultados.append({
                     "nombre": item["name"],
-                    "precio": precio,
+                    "precio": item["priceText"],
                     "url": item["href"] or url,
-                    "disponible": bool(m),
+                    "disponible": True,
                     "fuente": "Salcobrand",
                 })
 
