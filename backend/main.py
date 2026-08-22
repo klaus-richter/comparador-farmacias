@@ -30,63 +30,15 @@ def hello():
 
 async def buscar_un_producto(prod: str, force_refresh: bool = False):
     """
-    Busca un medicamento. Si está en caché vigente en el día y no se fuerza refresco, responde de inmediato.
-    Auto-Healing: Si alguna de las grandes cadenas farmacéuticas (Cruz Verde, Salcobrand, Ahumada)
-    carece de resultados y no tiene diagnóstico 'SIN_STOCK' confirmado, dispara un scraping en vivo
-    selectivo para esa farmacia, consolida la información y repara el caché en tiempo real.
+    Busca un medicamento. Si está en base de datos responde de inmediato (<0.05s).
+    Si no existe en la base, ejecuta el scraping de las 5 farmacias en simultáneo y lo guarda.
     """
     if not force_refresh:
         cached = get_cached_results(prod)
-        if cached:
-            resultados = cached.get("resultados", [])
-            cobertura_detalle = cached.get("cobertura", {}).get("detalle", {})
-            cadenas_presentes = {item.get("fuente") for item in resultados if item.get("fuente")}
-
-            farmacias_a_sanar = []
-            for cadena in MAJOR_CHAINS:
-                tiene_items = any(cadena.lower() in f.lower() or f.lower() in cadena.lower() for f in cadenas_presentes)
-                if not tiene_items:
-                    diag = cobertura_detalle.get(cadena, {})
-                    status = diag.get("status", "")
-                    # Si no tiene items o tuvo error previo, re-intentar en vivo esa farmacia para no dejar falsos sin stock
-                    farmacias_a_sanar.append(cadena)
-
-            if farmacias_a_sanar:
-                print(f"[Auto-Healing Seguro] Re-escaneando '{prod}' en: {farmacias_a_sanar} para descartar falso sin stock")
-                nuevos_items, nuevo_detalle = await scrapear_farmacias_especificas(prod, farmacias_a_sanar, max_retries=2)
-                cobertura_detalle.update(nuevo_detalle)
-
-                # Mantener resultados de farmacias que no se re-escanearon y agregar los nuevos
-                resultados_filtrados = [
-                    item for item in resultados
-                    if not any(f.lower() in item.get("fuente", "").lower() for f in farmacias_a_sanar)
-                ]
-                resultados_filtrados.extend(nuevos_items)
-
-                con_stock = sum(1 for d in cobertura_detalle.values() if d.get("status") == "OK")
-                sin_stock = sum(1 for d in cobertura_detalle.values() if d.get("status") == "SIN_STOCK")
-                con_error = sum(1 for d in cobertura_detalle.values() if "ERROR" in d.get("status", ""))
-
-                datos_actualizados = {
-                    "producto": prod,
-                    "total": len(resultados_filtrados),
-                    "resultados": resultados_filtrados,
-                    "cobertura": {
-                        "total_farmacias": 5,
-                        "con_stock": con_stock,
-                        "sin_stock": sin_stock,
-                        "con_error": con_error,
-                        "detalle": cobertura_detalle
-                    }
-                }
-                save_cached_results(prod, datos_actualizados)
-                datos_actualizados["cached"] = True
-                datos_actualizados["auto_healed"] = True
-                return datos_actualizados
-
+        if cached and cached.get("total", 0) > 0:
             return cached
 
-    data = await scrapear_todas_las_farmacias(prod, max_retries=2)
+    data = await scrapear_todas_las_farmacias(prod, max_retries=1)
     save_cached_results(prod, data)
     data["cached"] = False
     return data
