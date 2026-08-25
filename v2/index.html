@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Comparador de Farmacias de Chile - v2 Experimental</title>
+  <meta name="description" content="Comparador de precios y disponibilidad de medicamentos en farmacias chilenas en tiempo real (v2 Ultrarrápida)." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+  <style>
+    .badge-v2 {
+      background: #eef2ff;
+      color: #4f46e5;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.25rem 0.6rem;
+      border-radius: 9999px;
+      border: 1px solid #c7d2fe;
+      margin-left: 0.5rem;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <header class="header">
+      <div class="header-content">
+        <div class="logo">
+          <span class="logo-icon">💊</span>
+          <h1>Comparador de Farmacias <span class="badge-v2">v2 Ultrarrápida</span></h1>
+        </div>
+        <p class="subtitle">Consulta precios y disponibilidad en <strong>Cruz Verde, Salcobrand, Ahumada, Dr. Simi y Ecofarmacias</strong> en menos de 15 segundos.</p>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <section class="search-section">
+        <form id="search-form" class="search-form">
+          <div class="search-input-wrapper">
+            <input 
+              type="text" 
+              id="search-input" 
+              placeholder="Escribe un medicamento o receta (ej: Losartán, Paracetamol 500mg)..." 
+              autocomplete="off"
+              required
+            />
+            <button type="submit" id="search-btn" class="search-btn">
+              <span class="btn-text">Buscar Mejor Precio</span>
+              <span class="btn-icon">🔍</span>
+            </button>
+          </div>
+          <div class="search-hints">
+            <span>💡 Sugerencias rápidas:</span>
+            <button type="button" class="hint-tag" data-query="Losartán">Losartán</button>
+            <button type="button" class="hint-tag" data-query="Paracetamol">Paracetamol</button>
+            <button type="button" class="hint-tag" data-query="Amoxicilina">Amoxicilina</button>
+            <button type="button" class="hint-tag" data-query="Ibuprofeno">Ibuprofeno</button>
+            <button type="button" class="hint-tag" data-query="Tabcin Forte">Tabcin Forte</button>
+            <button type="button" class="hint-tag" data-query="Lertus CD">Lertus CD</button>
+          </div>
+        </form>
+
+        <div id="status-bar" class="status-bar hidden">
+          <div class="status-indicator">
+            <div id="spinner" class="spinner"></div>
+            <div class="status-texts">
+              <div id="status-title" class="status-title">Iniciando búsqueda inteligente...</div>
+              <div id="status-step" class="status-step">Conectando con las farmacias...</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="results-wrapper" class="results-wrapper hidden">
+        <div id="comparison-summary" class="comparison-summary"></div>
+        <div id="pharmacy-grid" class="pharmacy-grid"></div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>Comparador de Farmacias de Chile — Versión 2.0 (Motor Scraper Optimizado con Resource Blocking)</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
