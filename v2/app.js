@@ -243,10 +243,16 @@ function renderRecipeComparison(receta, queryList) {
     remaining = [...available];
   }
 
-  // Ordenar el resto de farmacias por: 1) Estrellas ⭐, 2) Menor precio
+  // Ordenar el resto de farmacias por:
+  // 1. Mayor cantidad de Estrellas ⭐ (mejores precios unitarios)
+  // 2. A igual cantidad de estrellas: Mayor cantidad de medicamentos disponibles (ej: 4/5 le gana a 3/5)
+  // 3. A igual cantidad de medicamentos: Menor precio total / subtotal ($)
   remaining.sort((a, b) => {
     if (a.starCount !== b.starCount) {
       return b.starCount - a.starCount;
+    }
+    if (a.availableCount !== b.availableCount) {
+      return b.availableCount - a.availableCount;
     }
     const priceA = a.totalNum !== Infinity ? a.totalNum : a.subtotalNum;
     const priceB = b.totalNum !== Infinity ? b.totalNum : b.subtotalNum;
@@ -258,6 +264,7 @@ function renderRecipeComparison(receta, queryList) {
   } else {
     totals = [...remaining, ...unavailable];
   }
+
 
 
 
