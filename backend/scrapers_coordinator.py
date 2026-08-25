@@ -98,6 +98,12 @@ async def _scrape_page_salcobrand(page, producto: str) -> List[Dict[str, Any]]:
         const productLinks = document.querySelectorAll('a[href*="/products/"]');
         for (const lk of productLinks) {
             const href = lk.getAttribute('href') || '';
+            // Ignorar links de navegación o vistas previas
+            if (href.includes('/products/sales') || href.includes('/preview')) continue;
+            
+            const cleanHrefKey = href.split('?')[0];
+            if (seen.has(cleanHrefKey)) continue;
+
             const card = lk.closest('div[class*="product"], li[class*="product"], div[class*="card"], article') || lk.parentElement;
             const txt = card ? card.innerText.trim() : (lk.innerText || '').trim();
             if (/agotado|sin\s*stock|no\s*disponible/i.test(txt)) continue;
@@ -106,7 +112,7 @@ async def _scrape_page_salcobrand(page, producto: str) -> List[Dict[str, Any]]:
             if (!prices || prices.length === 0) continue;
 
             const nameEl = card ? card.querySelector('h2, h3, .product-name, [class*="Name"], [class*="name"]') : null;
-            const lines = txt.split('\n').map(l => l.trim()).filter(l => l && !l.includes('$') && l.length > 3 && l.length < 90);
+            const lines = txt.split('\n').map(l => l.trim()).filter(l => l && !l.includes('$') && l.length > 3 && l.length < 90 && !/precio|receta|descuento|formato/i.test(l));
             let name = nameEl ? nameEl.innerText.trim() : (lines.length > 0 ? lines[0] : '');
 
             if (!name) {
@@ -116,8 +122,8 @@ async def _scrape_page_salcobrand(page, producto: str) -> List[Dict[str, Any]]:
                 }
             }
 
-            if (name && !seen.has(name)) {
-                seen.add(name);
+            if (name) {
+                seen.add(cleanHrefKey);
                 const cleanPrice = prices[0].replace(/\s+/g, '');
                 const fullHref = href.startsWith('http') ? href : `https://salcobrand.cl${href.startsWith('/') ? '' : '/'}${href}`;
                 results.push({ nombre: name, precio: cleanPrice, url: fullHref, fuente: "Salcobrand", disponible: true });
@@ -126,6 +132,7 @@ async def _scrape_page_salcobrand(page, producto: str) -> List[Dict[str, Any]]:
         return results.slice(0, 6);
     }""")
     return items
+
 
 
 async def _fetch_drsimi_vtex(producto: str) -> List[Dict[str, Any]]:
