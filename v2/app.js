@@ -217,35 +217,47 @@ function renderRecipeComparison(receta, queryList) {
     };
   });
 
-  // Ordenamiento solicitado por el usuario:
-  // 1. Farmacias con set completo (o mayor cantidad de medicamentos disponibles) primero.
-  // 2. Entre las completas: la de MENOR COSTO TOTAL de la receta completa ($) es la ganadora.
-  // 3. Desempate: Mayor cantidad de estrellitas ⭐ (mejores precios unitarios).
-  // 4. Farmacias con 0 disponibilidad al final.
-  totals.sort((a, b) => {
-    if (a.availableCount === 0 && b.availableCount === 0) return 0;
-    if (a.availableCount === 0) return 1;
-    if (b.availableCount === 0) return -1;
+  // Lógica de ordenamiento solicitada:
+  // 1. Ganador (#1): La farmacia que tenga la receta completa y sea la de MENOR COSTO TOTAL ($).
+  // 2. Lugares #2, #3, #4, #5: Ordenados por mayor cantidad de estrellitas ⭐ (mejores precios unitarios),
+  //    desempatando por menor subtotal/total.
+  // 3. Farmacias con 0 disponibilidad al final.
+  
+  // Separar farmacias con disponibilidad de las que tienen 0
+  const available = totals.filter(t => t.availableCount > 0);
+  const unavailable = totals.filter(t => t.availableCount === 0);
 
-    // 1. Prioridad: mayor cobertura de medicamentos de la receta (ej: 4/4 le gana a 3/4)
-    if (a.availableCount !== b.availableCount) {
-      return b.availableCount - a.availableCount;
-    }
+  // Buscar si hay farmacias completas
+  const completePharmacies = available.filter(t => t.isComplete);
+  let winner = null;
+  let remaining = [];
 
-    // 2. Prioridad principal: MENOR PRECIO TOTAL de la receta
-    const priceA = a.totalNum !== Infinity ? a.totalNum : a.subtotalNum;
-    const priceB = b.totalNum !== Infinity ? b.totalNum : b.subtotalNum;
-    if (priceA !== priceB) {
-      return priceA - priceB;
-    }
+  if (completePharmacies.length > 0) {
+    // La ganadora #1 es la completa con menor precio total
+    completePharmacies.sort((a, b) => a.totalNum - b.totalNum);
+    winner = completePharmacies[0];
+    remaining = available.filter(t => t.fuente !== winner.fuente);
+  } else {
+    // Si ninguna está completa, la primera por estrellas es la ganadora
+    remaining = [...available];
+  }
 
-    // 3. Criterio de desempate: mayor cantidad de estrellitas
+  // Ordenar el resto de farmacias por: 1) Estrellas ⭐, 2) Menor precio
+  remaining.sort((a, b) => {
     if (a.starCount !== b.starCount) {
       return b.starCount - a.starCount;
     }
-
-    return 0;
+    const priceA = a.totalNum !== Infinity ? a.totalNum : a.subtotalNum;
+    const priceB = b.totalNum !== Infinity ? b.totalNum : b.subtotalNum;
+    return priceA - priceB;
   });
+
+  if (winner) {
+    totals = [winner, ...remaining, ...unavailable];
+  } else {
+    totals = [...remaining, ...unavailable];
+  }
+
 
 
   comparisonSummary.style.display = "none";
