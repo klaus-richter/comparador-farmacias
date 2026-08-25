@@ -12,6 +12,9 @@ from backend.cache import (
 )
 from backend.worker import precargar_medicamentos
 
+from fastapi.staticfiles import StaticFiles
+import os
+
 MAJOR_CHAINS = ["Cruz Verde", "Salcobrand", "Farmacias Ahumada"]
 
 app = FastAPI(title="Comparador de Precios de Farmacias API")
@@ -27,6 +30,7 @@ app.add_middleware(
 @app.get("/api/hello")
 def hello():
     return {"status": "ok", "message": "Backend activo con 5 farmacias, auto-healing en vivo y caché SQLite diario"}
+
 
 async def buscar_un_producto(prod: str, force_refresh: bool = False):
     """
@@ -71,13 +75,16 @@ async def buscar_receta(
     start = time.time()
     productos = [p.strip() for p in q.replace("\n", ",").split(",") if p.strip()][:5]
 
+    # Ejecutar la búsqueda de todos los medicamentos en paralelo controlado
+    tasks = [buscar_un_producto(p, force_refresh=bool(refresh)) for p in productos]
+    resultados = await asyncio.gather(*tasks, return_exceptions=True)
+
     res_final = []
     todos_cacheados = True
-    for p in productos:
-        d = await buscar_un_producto(p, force_refresh=bool(refresh))
-        if isinstance(d, dict):
-            res_final.append(d)
-            if not d.get("cached", False):
+    for r in resultados:
+        if isinstance(r, dict):
+            res_final.append(r)
+            if not r.get("cached", False):
                 todos_cacheados = False
 
     elapsed = round(time.time() - start, 2)
@@ -88,6 +95,7 @@ async def buscar_receta(
         "cached": todos_cacheados and len(res_final) > 0,
         "elapsed_seconds": elapsed
     }
+
 
 @app.get("/api/cache/status")
 def cache_status():
@@ -108,3 +116,9 @@ async def cache_warmup(background_tasks: BackgroundTasks):
     """Inicia la precarga de medicamentos en segundo plano."""
     background_tasks.add_task(precargar_medicamentos)
     return {"status": "ok", "message": "Precarga de catálogo iniciada en segundo plano"}
+
+# Montar frontend para pruebas locales inmediatas en http://localhost:8000
+FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend")
+if os.path.exists(FRONTEND_DIR):
+    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
+
