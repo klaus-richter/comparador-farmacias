@@ -284,7 +284,7 @@ async def _scrape_page_cruzverde(page, producto: str) -> List[Dict[str, Any]]:
 
 
 # Semáforo para controlar concurrencia de pestañas y no saturar los 0.1 CPU de Render
-_PAGE_SEMAPHORE = asyncio.Semaphore(1)
+_PAGE_SEMAPHORE = asyncio.Semaphore(5)
 
 # --- COORDINADOR PRINCIPAL ULTRA RÁPIDO ---
 
