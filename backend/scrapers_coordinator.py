@@ -128,41 +128,54 @@ async def _scrape_page_salcobrand(page, producto: str) -> List[Dict[str, Any]]:
     return items
 
 
-async def _scrape_page_drsimi(page, producto: str) -> List[Dict[str, Any]]:
-    url = f"https://www.drsimi.cl/{producto}?_q={producto}&map=ft"
-    await page.route("**/*", _block_resources)
-    await page.goto(url, wait_until="domcontentloaded", timeout=15000)
-    try:
-        await page.wait_for_selector('.vtex-product-summary-2-x-container, [class*="product-summary"], a[href*="/p"]', timeout=5000)
-    except:
-        await page.wait_for_timeout(3000)
-    items = await page.evaluate(r"""() => {
-        const results = [];
-        const cards = document.querySelectorAll('.vtex-product-summary-2-x-container, [class*="product-summary"], article');
-        for (const c of cards) {
-            const cardText = c.innerText || '';
-            if (/agotado|sin\s*stock|sin\s*existencia|no\s*disponible/i.test(cardText)) continue;
+async def _fetch_drsimi_vtex(producto: str) -> List[Dict[str, Any]]:
+    """Consulta directa a la API REST de catálogo VTEX de Dr. Simi (0 Chromium, ~0.4s)."""
+    import urllib.parse
+    q_encoded = urllib.parse.quote(producto)
+    url = f"https://www.drsimi.cl/api/catalog_system/pub/products/search?ft={q_encoded}&_from=0&_to=6"
+    
+    def _do_get():
+        import urllib.request, json
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36",
+            "Accept": "application/json"
+        })
+        try:
+            with urllib.request.urlopen(req, timeout=6) as r:
+                return json.loads(r.read().decode("utf-8"))
+        except Exception:
+            return []
 
-            const brandEl = c.querySelector('[class*="productBrand"], span[class*="brand"]');
-            const nameEl = c.querySelector('[class*="productName"], [class*="product-name"], h3, a');
-            const brand = brandEl ? brandEl.innerText.trim() : '';
-            const nameOnly = nameEl ? nameEl.innerText.trim() : '';
-            const fullName = (brand && nameOnly && !nameOnly.toLowerCase().includes(brand.toLowerCase())) ? `${brand} - ${nameOnly}` : (nameOnly || brand);
+    data = await asyncio.to_thread(_do_get)
+    results = []
+    for p in data:
+        name = p.get("productName", "")
+        items = p.get("items", [])
+        if not items:
+            continue
+        sellers = items[0].get("sellers", [])
+        if not sellers:
+            continue
+        offer = sellers[0].get("commertialOffer", {})
+        price = offer.get("Price", 0)
+        avail = offer.get("IsAvailable", False)
+        
+        # Ignorar no disponibles o banners promocionales
+        if not avail or price <= 0 or "club de amigos" in name.lower():
+            continue
             
-            if (/club de amigos|catalogo|promocion/i.test(fullName)) continue;
+        clean_price = f"${int(price):,}".replace(",", ".")
+        link_text = p.get("linkText", "")
+        full_href = f"https://www.drsimi.cl/{link_text}/p" if link_text else "https://www.drsimi.cl"
+        results.append({
+            "nombre": name,
+            "precio": clean_price,
+            "url": full_href,
+            "fuente": "Dr. Simi",
+            "disponible": True
+        })
+    return results[:6]
 
-            const prices = cardText.match(/\$\s*[\d\.]+/g);
-            const linkEl = c.querySelector('a[href]');
-            const href = linkEl ? linkEl.getAttribute('href') : '';
-            if (prices && prices.length > 0 && fullName) {
-                const cleanPrice = prices[0].replace(/\s+/g, '');
-                const fullHref = href ? (href.startsWith('http') ? href : `https://www.drsimi.cl${href.startsWith('/') ? '' : '/'}${href}`) : '';
-                results.push({ nombre: fullName, precio: cleanPrice, url: fullHref, fuente: "Dr. Simi", disponible: true });
-            }
-        }
-        return results.slice(0, 6);
-    }""")
-    return items
 
 
 async def _scrape_page_cruzverde(page, producto: str) -> List[Dict[str, Any]]:
@@ -229,12 +242,15 @@ async def _scrape_page_cruzverde(page, producto: str) -> List[Dict[str, Any]]:
 
 
 
+# Semáforo para controlar concurrencia de pestañas y no saturar los 0.1 CPU de Render
+_PAGE_SEMAPHORE = asyncio.Semaphore(1)
+
 # --- COORDINADOR PRINCIPAL ULTRA RÁPIDO ---
 
 async def scrapear_todas_las_farmacias(producto: str, max_retries: int = 1) -> Dict[str, Any]:
     """
     Coordina la búsqueda en las 5 farmacias simultáneas usando 1 solo navegador compartido.
-    Tiempos récord de 6 a 8 segundos para medicamentos nuevos.
+    Usa semáforo para evitar starvation de CPU en contenedores de 0.1 CPU.
     """
     t0 = time.time()
     browser = await get_shared_browser()
@@ -245,15 +261,16 @@ async def scrapear_todas_las_farmacias(producto: str, max_retries: int = 1) -> D
     )
 
     async def _run_scraper(nombre: str, fn):
-        try:
-            page = await context.new_page()
+        async with _PAGE_SEMAPHORE:
             try:
-                items = await fn(page, producto)
-                return nombre, items, {"status": "OK" if items else "SIN_STOCK", "total": len(items)}
-            finally:
-                await page.close()
-        except Exception as e:
-            return nombre, [], {"status": "ERROR", "error": str(e), "total": 0}
+                page = await context.new_page()
+                try:
+                    items = await fn(page, producto)
+                    return nombre, items, {"status": "OK" if items else "SIN_STOCK", "total": len(items)}
+                finally:
+                    await page.close()
+            except Exception as e:
+                return nombre, [], {"status": "ERROR", "error": str(e), "total": 0}
 
     async def _run_eco():
         try:
@@ -262,14 +279,24 @@ async def scrapear_todas_las_farmacias(producto: str, max_retries: int = 1) -> D
         except Exception as e:
             return "Ecofarmacias", [], {"status": "ERROR", "error": str(e), "total": 0}
 
-    # Lanzar las 5 consultas en paralelo real
+    async def _run_simi():
+        try:
+            items = await _fetch_drsimi_vtex(producto)
+            return "Dr. Simi", items, {"status": "OK" if items else "SIN_STOCK", "total": len(items)}
+        except Exception as e:
+            return "Dr. Simi", [], {"status": "ERROR", "error": str(e), "total": 0}
+
+    # Ecofarmacias y Dr. Simi corren en paralelo inmediato por HTTP REST (0 Chromium, <0.8s)
+    # Las 3 grandes restantes (Ahumada, Salco, Cruz Verde) usan Chromium con semáforo y resource blocking
     respuestas = await asyncio.gather(
         _run_eco(),
+        _run_simi(),
         _run_scraper("Farmacias Ahumada", _scrape_page_ahumada),
         _run_scraper("Salcobrand", _scrape_page_salcobrand),
-        _run_scraper("Dr. Simi", _scrape_page_drsimi),
         _run_scraper("Cruz Verde", _scrape_page_cruzverde),
     )
+
+
 
     await context.close()
 
