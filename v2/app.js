@@ -172,8 +172,9 @@ function renderRecipeComparison(receta, queryList) {
     cheapestPerMed[r.producto] = { pharmacy: minPharmacy, price: minPrice };
   });
 
-  const totals = pharmacies.map(fuente => {
+  let totals = pharmacies.map(fuente => {
     let sum = 0;
+
     let availableCount = 0;
     let starCount = 0;
     const itemsByProd = [];
