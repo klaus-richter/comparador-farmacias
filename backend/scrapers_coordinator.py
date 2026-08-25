@@ -129,35 +129,65 @@ async def _scrape_page_drsimi(page, producto: str) -> List[Dict[str, Any]]:
 
 async def _scrape_page_cruzverde(page, producto: str) -> List[Dict[str, Any]]:
     url = f"https://www.cruzverde.cl/search?query={producto}"
-    await page.goto(url, wait_until="domcontentloaded", timeout=12000)
+    await page.goto(url, wait_until="domcontentloaded", timeout=15000)
+    # Cruz Verde es SPA React — los productos se inyectan DESPUÉS del DOM inicial.
+    # Esperar el selector con más tiempo. Si no aparece, esperar 4s adicionales.
     try:
-        await page.wait_for_selector('a[href*=".html"]', timeout=3500)
+        await page.wait_for_selector('a[href*="/"]', timeout=8000)
     except:
         pass
-    items = await page.evaluate('''() => {
-        const results = [];
-        const links = Array.from(document.querySelectorAll('a[href*=".html"]'));
-        for (const link of links) {
-            const card = link.closest('div[class*="flex-col"], [class*="product"], [class*="card"]') || link.parentElement;
-            const text = (card ? card.innerText : link.innerText).trim();
-            const prices = text.match(/\\$\\s*[\\d\\.]+/g);
-            const href = link.getAttribute('href') || '';
-            if (prices && prices.length > 0 && href && !results.some(r => r.url === href)) {
-                let name = (link.innerText || '').trim();
-                if (!name) {
-                    const slugMatch = href.match(/\\/([a-zA-Z0-9\\-]+)\\/\\d+\\.html/);
-                    if (slugMatch) {
-                        name = slugMatch[1].replace(/-/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-                    }
+    # Espera adicional para React
+    await page.wait_for_timeout(3000)
+    
+    def _cv_evaluate_script():
+        return '''() => {
+            const results = [];
+            const seen = new Set();
+            const links = Array.from(document.querySelectorAll('a[href]'));
+            for (const link of links) {
+                const href = link.getAttribute('href') || '';
+                // Solo links de productos con ID numérico al final (formato /slug/12345.html)
+                if (!/\/\d+\.html$/.test(href)) continue;
+                if (seen.has(href)) continue;
+                seen.add(href);
+
+                const card = link.closest('div[class*="product"], div[class*="card"], div[class*="Product"], article') || link.parentElement;
+                const cardText = card ? card.innerText.trim() : (link.innerText || '').trim();
+
+                // Descartar sin stock
+                if (/agotado|sin\\s*stock|sin\\s*existencia|no\\s*disponible/i.test(cardText)) continue;
+
+                // Extraer precios
+                const prices = cardText.match(/\\$\\s*[\\d\\.]+/g);
+                if (!prices || prices.length === 0) continue;
+                const priceText = prices[prices.length - 1];
+
+                // Nombre: slug del URL como fallback
+                const slugMatch = href.match(/\\/([a-zA-Z0-9\\-]+)\\/\\d+\\.html/);
+                let name = '';
+                if (slugMatch) {
+                    name = slugMatch[1].replace(/--+/g, ' - ').replace(/-/g, ' ');
+                    name = name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
                 }
+                // Intentar extraer nombre desde el texto de la card
+                const lines = cardText.split('\\n').map(l => l.trim()).filter(Boolean);
+                const textName = lines.find(l => !l.includes('$') && l.length > 3 && l.length < 80);
+                if (textName) name = textName;
+                if (!name) continue;
+
                 const fullHref = href.startsWith('http') ? href : `https://www.cruzverde.cl${href.startsWith('/') ? '' : '/'}${href}`;
-                if (name) {
-                    results.push({ nombre: name, precio: prices[prices.length - 1], url: fullHref, fuente: "Cruz Verde", disponible: true });
-                }
+                results.push({ nombre: name, precio: priceText, url: fullHref, fuente: "Cruz Verde", disponible: true });
             }
-        }
-        return results;
-    }''')
+            return results;
+        }'''
+    
+    items = await page.evaluate(_cv_evaluate_script())
+    
+    # Si no encontramos nada, un segundo intento con 3s más de espera
+    if not items:
+        await page.wait_for_timeout(3000)
+        items = await page.evaluate(_cv_evaluate_script())
+    
     return items[:6]
 
 # --- COORDINADOR PRINCIPAL ULTRA RÁPIDO ---
