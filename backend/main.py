@@ -27,9 +27,42 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from collections import defaultdict
+from fastapi import Request, HTTPException
+from fastapi.responses import JSONResponse
+
+# Rate Limiting ultra liviano en memoria por IP (0ms latencia)
+_RATE_LIMIT_STORE = defaultdict(list)
+_MAX_REQUESTS_PER_MINUTE = 15
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    # Proteger endpoints de búsqueda contra ataques DoS o bombardeo de bots
+    if request.url.path.startswith("/api/buscar"):
+        client_ip = request.headers.get("x-forwarded-for") or (request.client.host if request.client else "unknown")
+        client_ip = client_ip.split(",")[0].strip()
+        now = time.time()
+
+        # Limpiar marcas de tiempo de más de 60 segundos
+        _RATE_LIMIT_STORE[client_ip] = [t for t in _RATE_LIMIT_STORE[client_ip] if now - t < 60]
+
+        if len(_RATE_LIMIT_STORE[client_ip]) >= _MAX_REQUESTS_PER_MINUTE:
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "status": "error",
+                    "detail": "Has realizado demasiadas búsquedas seguidas. Por favor espera un momento."
+                }
+            )
+        _RATE_LIMIT_STORE[client_ip].append(now)
+
+    response = await call_next(request)
+    return response
+
 @app.get("/api/hello")
 def hello():
-    return {"status": "ok", "message": "Backend activo con 5 farmacias, auto-healing en vivo y caché SQLite diario"}
+    return {"status": "ok", "message": "Backend activo con 5 farmacias, rate limiting y caché"}
+
 
 
 async def buscar_un_producto(prod: str, force_refresh: bool = False):
