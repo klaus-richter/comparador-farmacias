@@ -13,6 +13,8 @@ def _get_connection() -> sqlite3.Connection:
     conn.execute("PRAGMA journal_mode=WAL;")
     return conn
 
+SEED_PATH = os.path.join(os.path.dirname(__file__), "data", "catalog_seed.json")
+
 def init_db():
     with _get_connection() as conn:
         conn.execute("""
@@ -31,8 +33,32 @@ def init_db():
             conn.execute("ALTER TABLE search_cache ADD COLUMN fecha_ingesta TEXT")
         conn.commit()
 
+        # Seed inicial automático desde JSON (evita arrancar en cero en Render)
+        if os.path.exists(SEED_PATH):
+            try:
+                count = conn.execute("SELECT COUNT(*) FROM search_cache").fetchone()[0]
+                if count < 50:
+                    with open(SEED_PATH, "r", encoding="utf-8") as f:
+                        seed_data = json.load(f)
+                    for item in seed_data:
+                        conn.execute("""
+                            INSERT OR IGNORE INTO search_cache (query, data_json, total, fecha_ingesta, created_at, expires_at)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        """, (
+                            item["query"],
+                            item["data_json"],
+                            item["total"],
+                            item.get("fecha_ingesta"),
+                            item.get("created_at", time.time()),
+                            item.get("expires_at", time.time() + 86400 * 30)
+                        ))
+                    conn.commit()
+            except Exception as e:
+                print(f"[CACHE SEED ERROR] {e}")
+
 # Inicializar BD al importar
 init_db()
+
 
 import unicodedata
 import re
