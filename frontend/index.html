@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Comparador de Remedios | Precios por Farmacia</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app">
+    <!-- Header -->
+    <header class="hero">
+      <div class="logo-badge">💊 COMPARADOR DE FARMACIAS CHILE</div>
+      <h1>🏥 Compara Precios de tu Receta</h1>
+      <p class="hero-instructions">Ingresa los medicamentos separados por coma</p>
+    </header>
+
+
+    <!-- Buscador -->
+    <p class="search-label">Máximo 5 medicamentos por búsqueda</p>
+    <form id="search-form" class="search-box">
+      <div class="input-wrap">
+        <span class="search-icon">🔍</span>
+        <input 
+          type="text" 
+          id="search-input" 
+          placeholder="Ej: omeprazol, amoxicilina, paracetamol..."
+          autocomplete="off"
+          autofocus
+          required 
+        />
+      </div>
+      <button type="submit" id="search-btn">
+        <span class="btn-text">Buscar Precios</span>
+      </button>
+    </form>
+
+
+
+    <!-- Estado / Espera animada -->
+    <div id="status-bar" class="status-bar" style="display: none;">
+      <div class="spinner" id="spinner" style="display: none;"></div>
+      <div class="status-content">
+        <div id="status-title" class="status-title"></div>
+        <div class="progress-track">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <div id="status-step" class="status-step"></div>
+      </div>
+    </div>
+
+    <!-- Contenedor Comparador de Columnas -->
+    <section id="results-wrapper" class="results-wrapper" style="display: none;">
+      <div class="comparison-summary" id="comparison-summary">
+        <!-- Resumen del ganador -->
+      </div>
+      <div class="pharmacy-grid" id="pharmacy-grid">
+        <!-- Columnas de farmacias generadas dinámicamente ordenadas de más barata a más cara -->
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
