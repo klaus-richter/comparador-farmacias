@@ -30,11 +30,12 @@ def hello():
 
 async def buscar_un_producto(prod: str, force_refresh: bool = False):
     """
-    Busca un medicamento. Si está en base de datos responde de inmediato (<0.05s).
-    Si no existe en la base, ejecuta el scraping de las 5 farmacias en simultáneo y lo guarda.
+    Busca un medicamento. Si está en base de datos con resultados responde de inmediato (<0.05s).
+    Si no existe O si la caché tiene 0 resultados (scraping previo fallido), ejecuta scraping en vivo.
     """
     if not force_refresh:
         cached = get_cached_results(prod)
+        # Solo retornar caché si tiene resultados reales. Si total==0, re-intentar.
         if cached and cached.get("total", 0) > 0:
             return cached
 
