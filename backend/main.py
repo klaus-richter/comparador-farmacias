@@ -75,13 +75,16 @@ async def buscar_receta(
     start = time.time()
     productos = [p.strip() for p in q.replace("\n", ",").split(",") if p.strip()][:5]
 
+    # Ejecutar la búsqueda de todos los medicamentos en paralelo controlado
+    tasks = [buscar_un_producto(p, force_refresh=bool(refresh)) for p in productos]
+    resultados = await asyncio.gather(*tasks, return_exceptions=True)
+
     res_final = []
     todos_cacheados = True
-    for p in productos:
-        d = await buscar_un_producto(p, force_refresh=bool(refresh))
-        if isinstance(d, dict):
-            res_final.append(d)
-            if not d.get("cached", False):
+    for r in resultados:
+        if isinstance(r, dict):
+            res_final.append(r)
+            if not r.get("cached", False):
                 todos_cacheados = False
 
     elapsed = round(time.time() - start, 2)
@@ -92,6 +95,7 @@ async def buscar_receta(
         "cached": todos_cacheados and len(res_final) > 0,
         "elapsed_seconds": elapsed
     }
+
 
 @app.get("/api/cache/status")
 def cache_status():
