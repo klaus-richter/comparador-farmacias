@@ -70,10 +70,23 @@ async def _scrape_page_ahumada(page, producto: str) -> List[Dict[str, Any]]:
                 const m = href.match(/\/([a-zA-Z0-9\-]+)-\d+\.html/);
                 if (m) name = m[1].replace(/-/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
             }
-            const prices = txt.match(/\$\s*[\d\.]+/g);
-            if (name && prices && prices.length > 0) {
-                // Tomar el precio final limpio (primer match de precio o el más relevante)
-                const cleanPrice = prices[0].replace(/\s+/g, '');
+            const priceEl = t.querySelector('.sales .value, .price .sales .value, .sales, .price .value, span[itemprop="price"]');
+            let cleanPrice = '';
+            if (priceEl && /\$\s*[\d\.]+/.test(priceEl.innerText)) {
+                cleanPrice = (priceEl.innerText.match(/\$\s*[\d\.]+/)[0] || '').replace(/\s+/g, '');
+            } else {
+                // Filtrar precios descartando los de dosis/fraccionados (< $400 si hay otro mayor)
+                const allPrices = txt.match(/\$\s*[\d\.]+/g) || [];
+                const validPrices = allPrices.map(p => ({ raw: p.replace(/\s+/g, ''), num: parseInt(p.replace(/[^\d]/g, ''), 10) || 0 }))
+                                             .filter(p => p.num > 0);
+                if (validPrices.length > 0) {
+                    // Tomar el precio representativo (generalmente el mayor o el de venta)
+                    const mainP = validPrices.find(p => p.num >= 400) || validPrices[0];
+                    cleanPrice = mainP.raw;
+                }
+            }
+
+            if (name && cleanPrice) {
                 const fullHref = href.startsWith('http') ? href : `https://www.farmaciasahumada.cl${href.startsWith('/') ? '' : '/'}${href}`;
                 if (!results.some(x => x.nombre === name)) {
                     results.push({ nombre: name, precio: cleanPrice, url: fullHref, fuente: "Farmacias Ahumada", disponible: true });
@@ -83,6 +96,7 @@ async def _scrape_page_ahumada(page, producto: str) -> List[Dict[str, Any]]:
         return results.slice(0, 6);
     }""")
     return items
+
 
 
 async def _scrape_page_salcobrand(page, producto: str) -> List[Dict[str, Any]]:
