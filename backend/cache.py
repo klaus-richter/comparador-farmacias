@@ -109,17 +109,18 @@ def get_cached_results(query: str) -> Optional[Dict[str, Any]]:
                 )
                 row = cursor.fetchone()
 
-            # 3. Intento de auto-corrección difusa con difflib (>85% similitud)
+            # 3. Intento de auto-corrección difusa con difflib (>90% similitud)
             if not row and len(norm_query) >= 4:
                 cursor = conn.execute("SELECT query FROM search_cache WHERE total > 0")
                 all_queries = [r[0] for r in cursor.fetchall()]
-                matches = difflib.get_close_matches(norm_query, all_queries, n=1, cutoff=0.85)
+                matches = difflib.get_close_matches(norm_query, all_queries, n=1, cutoff=0.90)
                 if matches:
                     cursor = conn.execute(
                         "SELECT data_json, total, fecha_ingesta, created_at, expires_at FROM search_cache WHERE query = ?",
                         (matches[0],)
                     )
                     row = cursor.fetchone()
+
 
             if row:
                 data = json.loads(row["data_json"])
