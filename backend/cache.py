@@ -33,28 +33,33 @@ def init_db():
             conn.execute("ALTER TABLE search_cache ADD COLUMN fecha_ingesta TEXT")
         conn.commit()
 
-        # Seed inicial automático desde JSON (evita arrancar en cero en Render)
+        # Cargar/Actualizar seed siempre con la versión más completa y fresca
         if os.path.exists(SEED_PATH):
             try:
-                count = conn.execute("SELECT COUNT(*) FROM search_cache").fetchone()[0]
-                if count < 50:
-                    with open(SEED_PATH, "r", encoding="utf-8") as f:
-                        seed_data = json.load(f)
-                    for item in seed_data:
-                        conn.execute("""
-                            INSERT OR IGNORE INTO search_cache (query, data_json, total, fecha_ingesta, created_at, expires_at)
-                            VALUES (?, ?, ?, ?, ?, ?)
-                        """, (
-                            item["query"],
-                            item["data_json"],
-                            item["total"],
-                            item.get("fecha_ingesta"),
-                            item.get("created_at", time.time()),
-                            item.get("expires_at", time.time() + 86400 * 30)
-                        ))
-                    conn.commit()
+                with open(SEED_PATH, "r", encoding="utf-8") as f:
+                    seed_data = json.load(f)
+                for item in seed_data:
+                    conn.execute("""
+                        INSERT INTO search_cache (query, data_json, total, fecha_ingesta, created_at, expires_at)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(query) DO UPDATE SET
+                            data_json = excluded.data_json,
+                            total = excluded.total,
+                            fecha_ingesta = excluded.fecha_ingesta,
+                            created_at = excluded.created_at
+                        WHERE excluded.total >= search_cache.total OR search_cache.total = 0
+                    """, (
+                        item["query"],
+                        item["data_json"],
+                        item["total"],
+                        item.get("fecha_ingesta"),
+                        item.get("created_at", time.time()),
+                        item.get("expires_at", time.time() + 86400 * 365)
+                    ))
+                conn.commit()
             except Exception as e:
                 print(f"[CACHE SEED ERROR] {e}")
+
 
 # Inicializar BD al importar
 init_db()
