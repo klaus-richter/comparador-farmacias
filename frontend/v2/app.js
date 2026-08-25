@@ -1,7 +1,7 @@
 // Configuración de API (soporta local y despliegue en la nube para GitHub Pages)
 const API = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
   ? "http://localhost:8000"
-  : "https://comparador-farmacias-v2.onrender.com";
+  : "https://comparador-farmacias-2.onrender.com";
 
 const statusBar = document.getElementById("status-bar");
 const spinner = document.getElementById("spinner");
@@ -217,25 +217,48 @@ function renderRecipeComparison(receta, queryList) {
     };
   });
 
-  // Ordenamiento solicitado:
-  // 1. Mayor cantidad de estrellitas ⭐ (de más a menos) primero.
-  // 2. Desempate: Menor precio total / subtotal de la receta.
+  // Lógica de ordenamiento solicitada:
+  // 1. Ganador (#1): La farmacia que tenga la receta completa y sea la de MENOR COSTO TOTAL ($).
+  // 2. Lugares #2, #3, #4, #5: Ordenados por mayor cantidad de estrellitas ⭐ (mejores precios unitarios),
+  //    desempatando por menor subtotal/total.
   // 3. Farmacias con 0 disponibilidad al final.
-  totals.sort((a, b) => {
-    if (a.availableCount === 0 && b.availableCount === 0) return 0;
-    if (a.availableCount === 0) return 1;
-    if (b.availableCount === 0) return -1;
+  
+  // Separar farmacias con disponibilidad de las que tienen 0
+  const available = totals.filter(t => t.availableCount > 0);
+  const unavailable = totals.filter(t => t.availableCount === 0);
 
-    // Primer criterio: mayor cantidad de estrellas
+  // Buscar si hay farmacias completas
+  const completePharmacies = available.filter(t => t.isComplete);
+  let winner = null;
+  let remaining = [];
+
+  if (completePharmacies.length > 0) {
+    // La ganadora #1 es la completa con menor precio total
+    completePharmacies.sort((a, b) => a.totalNum - b.totalNum);
+    winner = completePharmacies[0];
+    remaining = available.filter(t => t.fuente !== winner.fuente);
+  } else {
+    // Si ninguna está completa, la primera por estrellas es la ganadora
+    remaining = [...available];
+  }
+
+  // Ordenar el resto de farmacias por: 1) Estrellas ⭐, 2) Menor precio
+  remaining.sort((a, b) => {
     if (a.starCount !== b.starCount) {
       return b.starCount - a.starCount;
     }
-
-    // Segundo criterio (desempate): menor valor de la receta
     const priceA = a.totalNum !== Infinity ? a.totalNum : a.subtotalNum;
     const priceB = b.totalNum !== Infinity ? b.totalNum : b.subtotalNum;
     return priceA - priceB;
   });
+
+  if (winner) {
+    totals = [winner, ...remaining, ...unavailable];
+  } else {
+    totals = [...remaining, ...unavailable];
+  }
+
+
 
   comparisonSummary.style.display = "none";
 
