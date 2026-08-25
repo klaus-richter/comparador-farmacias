@@ -181,12 +181,31 @@ async def _fetch_drsimi_vtex(producto: str) -> List[Dict[str, Any]]:
 async def _scrape_page_cruzverde(page, producto: str) -> List[Dict[str, Any]]:
     url = f"https://www.cruzverde.cl/search?query={producto}"
     await page.route("**/*", _block_resources)
-    await page.goto(url, wait_until="domcontentloaded", timeout=20000)
+    
+    # Inyectar cookies de comuna para evitar que el modal de ubicación bloquee el catálogo
     try:
-        await page.wait_for_selector('a[href*=".html"]', timeout=9000)
-    except:
+        await page.context.add_cookies([
+            {"name": "cruzverde_commune", "value": "LAS CONDES", "domain": ".cruzverde.cl", "path": "/"},
+            {"name": "cruzverde_region", "value": "13", "domain": ".cruzverde.cl", "path": "/"}
+        ])
+    except Exception:
         pass
-    await page.wait_for_timeout(2500)
+
+    await page.goto(url, wait_until="domcontentloaded", timeout=25000)
+    
+    # Cerrar modal si aparece
+    try:
+        modal_btn = await page.query_selector('button:has-text("Aceptar"), button:has-text("Continuar"), [class*="close"]')
+        if modal_btn:
+            await modal_btn.click()
+    except Exception:
+        pass
+
+    try:
+        await page.wait_for_selector('a[href*=".html"]', timeout=8000)
+    except Exception:
+        pass
+    await page.wait_for_timeout(2000)
 
     CV_EVAL = r"""() => {
         const results = [], seen = new Set();
@@ -198,7 +217,7 @@ async def _scrape_page_cruzverde(page, producto: str) -> List[Dict[str, Any]]:
             // Subir en el árbol DOM hasta encontrar la tarjeta con el precio
             let cur = a;
             let card = null;
-            for (let i = 0; i < 6; i++) {
+            for (let i = 0; i < 8; i++) {
                 if (!cur.parentElement) break;
                 cur = cur.parentElement;
                 if (/\$\s*[\d\.]+/g.test(cur.innerText || '')) {
@@ -210,7 +229,7 @@ async def _scrape_page_cruzverde(page, producto: str) -> List[Dict[str, Any]]:
             seen.add(href);
 
             const txt = card.innerText.trim();
-            if (/agotado|sin\s*stock|sin\s*existencia|no\s*disponible/i.test(txt)) continue;
+            if (/agotado|sin\s*stock\s*online|sin\s*existencia/i.test(txt)) continue;
 
             const prices = txt.match(/\$\s*[\d\.]+/g);
             if (!prices || prices.length === 0) continue;
@@ -227,7 +246,7 @@ async def _scrape_page_cruzverde(page, producto: str) -> List[Dict[str, Any]]:
             }
 
             const cleanPrice = prices[prices.length - 1].replace(/\s+/g, '');
-            const fullHref = href.startsWith('http') ? href : `https://www.cruzverde.cl${href.startsWith('/') ? '' : '/'}${href}`;
+            const fullHref = href.startsWith('http') ? href : `https://www.cruzverde.cl${href}`;
             results.push({ nombre: name, precio: cleanPrice, url: fullHref, fuente: "Cruz Verde", disponible: true });
         }
         return results.slice(0, 6);
@@ -238,6 +257,7 @@ async def _scrape_page_cruzverde(page, producto: str) -> List[Dict[str, Any]]:
         await page.wait_for_timeout(2500)
         items = await page.evaluate(CV_EVAL)
     return items
+
 
 
 
