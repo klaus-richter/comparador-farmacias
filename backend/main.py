@@ -12,6 +12,9 @@ from backend.cache import (
 )
 from backend.worker import precargar_medicamentos
 
+from fastapi.staticfiles import StaticFiles
+import os
+
 MAJOR_CHAINS = ["Cruz Verde", "Salcobrand", "Farmacias Ahumada"]
 
 app = FastAPI(title="Comparador de Precios de Farmacias API")
@@ -27,6 +30,7 @@ app.add_middleware(
 @app.get("/api/hello")
 def hello():
     return {"status": "ok", "message": "Backend activo con 5 farmacias, auto-healing en vivo y caché SQLite diario"}
+
 
 async def buscar_un_producto(prod: str, force_refresh: bool = False):
     """
@@ -108,3 +112,9 @@ async def cache_warmup(background_tasks: BackgroundTasks):
     """Inicia la precarga de medicamentos en segundo plano."""
     background_tasks.add_task(precargar_medicamentos)
     return {"status": "ok", "message": "Precarga de catálogo iniciada en segundo plano"}
+
+# Montar frontend para pruebas locales inmediatas en http://localhost:8000
+FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend")
+if os.path.exists(FRONTEND_DIR):
+    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
+
