@@ -109,17 +109,30 @@ def get_cached_results(query: str) -> Optional[Dict[str, Any]]:
                 )
                 row = cursor.fetchone()
 
-            # 3. Intento de auto-corrección difusa con difflib (>90% similitud)
+            # 3. Intento de auto-corrección difusa con difflib (cutoff 0.80) y fonética (i <-> y)
             if not row and len(norm_query) >= 4:
                 cursor = conn.execute("SELECT query FROM search_cache WHERE total > 0")
                 all_queries = [r[0] for r in cursor.fetchall()]
-                matches = difflib.get_close_matches(norm_query, all_queries, n=1, cutoff=0.90)
+                
+                # 3a. Coincidencia difusa estándar al 80%
+                matches = difflib.get_close_matches(norm_query, all_queries, n=1, cutoff=0.80)
+                
+                # 3b. Coincidencia fonética i/y (ej: avamis <-> avamys)
+                if not matches:
+                    norm_phonetic = norm_query.replace('y', 'i').replace('b', 'v').replace('z', 's')
+                    for cand in all_queries:
+                        cand_phonetic = cand.replace('y', 'i').replace('b', 'v').replace('z', 's')
+                        if norm_phonetic == cand_phonetic:
+                            matches = [cand]
+                            break
+
                 if matches:
                     cursor = conn.execute(
                         "SELECT data_json, total, fecha_ingesta, created_at, expires_at FROM search_cache WHERE query = ?",
                         (matches[0],)
                     )
                     row = cursor.fetchone()
+
 
 
             if row:
