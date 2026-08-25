@@ -13,6 +13,8 @@ def _get_connection() -> sqlite3.Connection:
     conn.execute("PRAGMA journal_mode=WAL;")
     return conn
 
+SEED_PATH = os.path.join(os.path.dirname(__file__), "data", "catalog_seed.json")
+
 def init_db():
     with _get_connection() as conn:
         conn.execute("""
@@ -31,8 +33,32 @@ def init_db():
             conn.execute("ALTER TABLE search_cache ADD COLUMN fecha_ingesta TEXT")
         conn.commit()
 
+        # Seed inicial automático desde JSON (evita arrancar en cero en Render)
+        if os.path.exists(SEED_PATH):
+            try:
+                count = conn.execute("SELECT COUNT(*) FROM search_cache").fetchone()[0]
+                if count < 50:
+                    with open(SEED_PATH, "r", encoding="utf-8") as f:
+                        seed_data = json.load(f)
+                    for item in seed_data:
+                        conn.execute("""
+                            INSERT OR IGNORE INTO search_cache (query, data_json, total, fecha_ingesta, created_at, expires_at)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        """, (
+                            item["query"],
+                            item["data_json"],
+                            item["total"],
+                            item.get("fecha_ingesta"),
+                            item.get("created_at", time.time()),
+                            item.get("expires_at", time.time() + 86400 * 30)
+                        ))
+                    conn.commit()
+            except Exception as e:
+                print(f"[CACHE SEED ERROR] {e}")
+
 # Inicializar BD al importar
 init_db()
+
 
 import unicodedata
 import re
@@ -60,17 +86,27 @@ def _get_end_of_legal_day_timestamp() -> float:
 
 def get_cached_results(query: str) -> Optional[Dict[str, Any]]:
     """
-    Retorna siempre el último resultado disponible en la base de datos para este medicamento.
-    No bloquea por fecha ni expira artificialmente.
+    Retorna el resultado disponible en la base de datos para este medicamento.
+    Incluye auto-corrección difusa para tolerar errores tipográficos (ej: 'paracetamo' -> 'paracetamol').
     """
     norm_query = _normalize_query(query)
     try:
         with _get_connection() as conn:
+            # 1. Intento de coincidencia exacta
             cursor = conn.execute(
-                "SELECT data_json, total, fecha_ingesta, created_at, expires_at FROM search_cache WHERE query = ?",
+                "SELECT data_json, total, fecha_ingesta, created_at, expires_at FROM search_cache WHERE query = ? AND total > 0",
                 (norm_query,)
             )
             row = cursor.fetchone()
+            
+            # 2. Intento de auto-corrección difusa / prefijo (ej: 'paracetamo' -> 'paracetamol', 'omeprazo' -> 'omeprazol')
+            if not row and len(norm_query) >= 4:
+                cursor = conn.execute(
+                    "SELECT data_json, total, fecha_ingesta, created_at, expires_at FROM search_cache WHERE total > 0 AND (query LIKE ? OR ? LIKE query || '%') ORDER BY total DESC LIMIT 1",
+                    (f"{norm_query}%", norm_query)
+                )
+                row = cursor.fetchone()
+
             if row:
                 data = json.loads(row["data_json"])
                 return {
@@ -86,6 +122,7 @@ def get_cached_results(query: str) -> Optional[Dict[str, Any]]:
     except Exception as e:
         print(f"Error leyendo cache para '{query}': {e}")
     return None
+
 
 def save_cached_results(query: str, data: Dict[str, Any], custom_expires_at: Optional[float] = None):
     """
