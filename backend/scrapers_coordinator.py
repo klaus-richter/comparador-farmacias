@@ -4,6 +4,22 @@ from typing import List, Dict, Any, Tuple
 from playwright.async_api import async_playwright
 from backend.scrapers.ecofarmacias import buscar_ecofarmacias
 
+# ── Resource blocking: reduce CPU/RAM/tiempo 40-60% en Render ──
+_SKIP_TYPES = {"image","stylesheet","font","media"}
+_SKIP_DOMAINS = ["google","facebook","analytics","gtm","clarity","hotjar",
+    "doubleclick","datadog","segment","tiktok","twitter",
+    "pixel","ads","tracking","newrelic","akamai","omtrdc"]
+
+async def _block_resources(route):
+    req = route.request
+    if req.resource_type in _SKIP_TYPES:
+        await route.abort(); return
+    if any(d in req.url.lower() for d in _SKIP_DOMAINS):
+        await route.abort(); return
+    await route.continue_()
+
+
+
 # Instancia global y única de Playwright para todo el servidor
 _PLAYWRIGHT_INSTANCE = None
 _SHARED_BROWSER = None
@@ -33,77 +49,99 @@ async def get_shared_browser():
 
 async def _scrape_page_ahumada(page, producto: str) -> List[Dict[str, Any]]:
     url = f"https://www.farmaciasahumada.cl/search?q={producto}&search-button=&lang=default"
-    await page.goto(url, wait_until="domcontentloaded", timeout=12000)
+    await page.route("**/*", _block_resources)
+    await page.goto(url, wait_until="domcontentloaded", timeout=20000)
     try:
-        await page.wait_for_selector('.product-tile', timeout=3500)
+        await page.wait_for_selector('.product-tile, .pdp-link, a[href*=".html"]', timeout=6000)
     except:
-        pass
-    items = await page.evaluate('''() => {
+        await page.wait_for_timeout(3000)
+    items = await page.evaluate(r"""() => {
         const results = [];
-        const tiles = document.querySelectorAll('.product-grid .product-tile, .product-tile');
+        const tiles = document.querySelectorAll('.product-tile');
         for (const t of tiles) {
             if (t.closest('.carousel, [class*="recommendation"], [class*="sponsored"]')) continue;
-            const nameEl = t.querySelector('.pdp-link a');
+            const txt = t.innerText || '';
+            if (/agotado|sin\s*stock|sin\s*existencias|no\s*disponible/i.test(txt)) continue;
+            const nameEl = t.querySelector('.pdp-link a, .product-name a');
             const linkEl = t.querySelector('.pdp-link a, a[href*=".html"]');
             const href = linkEl ? linkEl.getAttribute('href') : '';
             let name = nameEl ? nameEl.innerText.trim() : '';
             if (!name && href) {
-                const m = href.match(/\\/([a-zA-Z0-9\\-]+)-\\d+\\.html/);
+                const m = href.match(/\/([a-zA-Z0-9\-]+)-\d+\.html/);
                 if (m) name = m[1].replace(/-/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
             }
-            const salesEl = t.querySelector('.sales .value, .price .value, .sales, .price');
-            const priceText = salesEl ? salesEl.innerText.trim() : '';
-            if (name && priceText) {
-                const fullHref = href ? (href.startsWith('http') ? href : `https://www.farmaciasahumada.cl${href.startsWith('/') ? '' : '/'}${href}`) : '';
-                results.push({ nombre: name, precio: priceText, url: fullHref, fuente: "Farmacias Ahumada", disponible: true });
+            const prices = txt.match(/\$\s*[\d\.]+/g);
+            if (name && prices && prices.length > 0) {
+                // Tomar el precio final limpio (primer match de precio o el más relevante)
+                const cleanPrice = prices[0].replace(/\s+/g, '');
+                const fullHref = href.startsWith('http') ? href : `https://www.farmaciasahumada.cl${href.startsWith('/') ? '' : '/'}${href}`;
+                if (!results.some(x => x.nombre === name)) {
+                    results.push({ nombre: name, precio: cleanPrice, url: fullHref, fuente: "Farmacias Ahumada", disponible: true });
+                }
             }
         }
-        return results;
-    }''')
-    return items[:6]
+        return results.slice(0, 6);
+    }""")
+    return items
+
 
 async def _scrape_page_salcobrand(page, producto: str) -> List[Dict[str, Any]]:
     url = f"https://salcobrand.cl/search_result?query={producto}"
-    await page.goto(url, wait_until="domcontentloaded", timeout=12000)
+    await page.route("**/*", _block_resources)
+    await page.goto(url, wait_until="domcontentloaded", timeout=20000)
     try:
-        await page.wait_for_selector('.product-info, .product-name', timeout=3500)
+        await page.wait_for_selector('a[href*="/products/"], .display-offer-price, .product-name', timeout=7000)
     except:
-        pass
-    items = await page.evaluate('''() => {
-        const results = [];
-        const nodes = document.querySelectorAll('.product-info, .product-item, .product');
-        for (const node of nodes) {
-            const brandEl = node.querySelector('.product-name, [class*="brand"]');
-            const infoEl = node.querySelector('.product-info, [class*="name"], h3, a');
-            const brand = brandEl ? brandEl.innerText.trim() : '';
-            const info = infoEl ? infoEl.innerText.trim() : '';
-            const name = (brand && !info.toLowerCase().includes(brand.toLowerCase())) ? `${brand} - ${info}` : (info || brand);
-            const priceEl = node.querySelector('.display-offer-price, .display-secoundary-price-normal, .price');
-            const priceText = priceEl ? priceEl.innerText.trim() : '';
-            const linkEl = node.querySelector('a');
-            const href = linkEl ? linkEl.getAttribute('href') : '';
-            if (name && priceText) {
-                const fullHref = href ? (href.startsWith('http') ? href : `https://salcobrand.cl${href.startsWith('/') ? '' : '/'}${href}`) : '';
-                results.push({ nombre: name, precio: priceText, url: fullHref, fuente: "Salcobrand", disponible: true });
+        await page.wait_for_timeout(3500)
+    items = await page.evaluate(r"""() => {
+        const results = [], seen = new Set();
+        const productLinks = document.querySelectorAll('a[href*="/products/"]');
+        for (const lk of productLinks) {
+            const href = lk.getAttribute('href') || '';
+            const card = lk.closest('div[class*="product"], li[class*="product"], div[class*="card"], article') || lk.parentElement;
+            const txt = card ? card.innerText.trim() : (lk.innerText || '').trim();
+            if (/agotado|sin\s*stock|no\s*disponible/i.test(txt)) continue;
+
+            const prices = txt.match(/\$\s*[\d\.]+/g);
+            if (!prices || prices.length === 0) continue;
+
+            const nameEl = card ? card.querySelector('h2, h3, .product-name, [class*="Name"], [class*="name"]') : null;
+            const lines = txt.split('\n').map(l => l.trim()).filter(l => l && !l.includes('$') && l.length > 3 && l.length < 90);
+            let name = nameEl ? nameEl.innerText.trim() : (lines.length > 0 ? lines[0] : '');
+
+            if (!name) {
+                const slugMatch = href.match(/\/products\/([a-zA-Z0-9\-]+)/);
+                if (slugMatch) {
+                    name = slugMatch[1].replace(/-/g, ' ').toUpperCase();
+                }
+            }
+
+            if (name && !seen.has(name)) {
+                seen.add(name);
+                const cleanPrice = prices[0].replace(/\s+/g, '');
+                const fullHref = href.startsWith('http') ? href : `https://salcobrand.cl${href.startsWith('/') ? '' : '/'}${href}`;
+                results.push({ nombre: name, precio: cleanPrice, url: fullHref, fuente: "Salcobrand", disponible: true });
             }
         }
-        return results;
-    }''')
-    return items[:6]
+        return results.slice(0, 6);
+    }""")
+    return items
+
 
 async def _scrape_page_drsimi(page, producto: str) -> List[Dict[str, Any]]:
     url = f"https://www.drsimi.cl/{producto}?_q={producto}&map=ft"
-    await page.goto(url, wait_until="domcontentloaded", timeout=12000)
+    await page.route("**/*", _block_resources)
+    await page.goto(url, wait_until="domcontentloaded", timeout=15000)
     try:
-        await page.wait_for_selector('.vtex-product-summary-2-x-container, [class*="product-summary"]', timeout=3500)
+        await page.wait_for_selector('.vtex-product-summary-2-x-container, [class*="product-summary"], a[href*="/p"]', timeout=5000)
     except:
-        pass
-    items = await page.evaluate('''() => {
+        await page.wait_for_timeout(3000)
+    items = await page.evaluate(r"""() => {
         const results = [];
         const cards = document.querySelectorAll('.vtex-product-summary-2-x-container, [class*="product-summary"], article');
         for (const c of cards) {
             const cardText = c.innerText || '';
-            if (/agotado|sin\\s*stock|sin\\s*existencia|no\\s*disponible/i.test(cardText)) continue;
+            if (/agotado|sin\s*stock|sin\s*existencia|no\s*disponible/i.test(cardText)) continue;
 
             const brandEl = c.querySelector('[class*="productBrand"], span[class*="brand"]');
             const nameEl = c.querySelector('[class*="productName"], [class*="product-name"], h3, a');
@@ -111,84 +149,85 @@ async def _scrape_page_drsimi(page, producto: str) -> List[Dict[str, Any]]:
             const nameOnly = nameEl ? nameEl.innerText.trim() : '';
             const fullName = (brand && nameOnly && !nameOnly.toLowerCase().includes(brand.toLowerCase())) ? `${brand} - ${nameOnly}` : (nameOnly || brand);
             
-            // Ignorar banners promocionales que no son medicamentos (ej: Club de amigos)
             if (/club de amigos|catalogo|promocion/i.test(fullName)) continue;
 
-            const priceEl = c.querySelector('[class*="sellingPriceValue"], [class*="currencyContainer"], [class*="price_"], [class*="sellingPrice"]');
-            const priceText = priceEl ? priceEl.innerText.trim() : '';
-            const linkEl = c.querySelector('a');
+            const prices = cardText.match(/\$\s*[\d\.]+/g);
+            const linkEl = c.querySelector('a[href]');
             const href = linkEl ? linkEl.getAttribute('href') : '';
-            if (priceText && fullName) {
+            if (prices && prices.length > 0 && fullName) {
+                const cleanPrice = prices[0].replace(/\s+/g, '');
                 const fullHref = href ? (href.startsWith('http') ? href : `https://www.drsimi.cl${href.startsWith('/') ? '' : '/'}${href}`) : '';
-                results.push({ nombre: fullName, precio: priceText, url: fullHref, fuente: "Dr. Simi", disponible: true });
+                results.push({ nombre: fullName, precio: cleanPrice, url: fullHref, fuente: "Dr. Simi", disponible: true });
             }
         }
-        return results;
-    }''')
-    return items[:6]
+        return results.slice(0, 6);
+    }""")
+    return items
+
 
 async def _scrape_page_cruzverde(page, producto: str) -> List[Dict[str, Any]]:
     url = f"https://www.cruzverde.cl/search?query={producto}"
-    await page.goto(url, wait_until="domcontentloaded", timeout=15000)
-    # Cruz Verde es SPA React — los productos se inyectan DESPUÉS del DOM inicial.
-    # Esperar el selector con más tiempo. Si no aparece, esperar 4s adicionales.
+    await page.route("**/*", _block_resources)
+    await page.goto(url, wait_until="domcontentloaded", timeout=20000)
     try:
-        await page.wait_for_selector('a[href*="/"]', timeout=8000)
+        await page.wait_for_selector('a[href*=".html"]', timeout=9000)
     except:
         pass
-    # Espera adicional para React
-    await page.wait_for_timeout(3000)
-    
-    def _cv_evaluate_script():
-        return '''() => {
-            const results = [];
-            const seen = new Set();
-            const links = Array.from(document.querySelectorAll('a[href]'));
-            for (const link of links) {
-                const href = link.getAttribute('href') || '';
-                // Solo links de productos con ID numérico al final (formato /slug/12345.html)
-                if (!/\/\d+\.html$/.test(href)) continue;
-                if (seen.has(href)) continue;
-                seen.add(href);
+    await page.wait_for_timeout(2500)
 
-                const card = link.closest('div[class*="product"], div[class*="card"], div[class*="Product"], article') || link.parentElement;
-                const cardText = card ? card.innerText.trim() : (link.innerText || '').trim();
+    CV_EVAL = r"""() => {
+        const results = [], seen = new Set();
+        const links = Array.from(document.querySelectorAll('a[href*=".html"]'));
+        for (const a of links) {
+            const href = a.getAttribute('href') || '';
+            if (!/\/\d+\.html(\?|$)/.test(href) || seen.has(href)) continue;
 
-                // Descartar sin stock
-                if (/agotado|sin\\s*stock|sin\\s*existencia|no\\s*disponible/i.test(cardText)) continue;
-
-                // Extraer precios
-                const prices = cardText.match(/\\$\\s*[\\d\\.]+/g);
-                if (!prices || prices.length === 0) continue;
-                const priceText = prices[prices.length - 1];
-
-                // Nombre: slug del URL como fallback
-                const slugMatch = href.match(/\\/([a-zA-Z0-9\\-]+)\\/\\d+\\.html/);
-                let name = '';
-                if (slugMatch) {
-                    name = slugMatch[1].replace(/--+/g, ' - ').replace(/-/g, ' ');
-                    name = name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+            // Subir en el árbol DOM hasta encontrar la tarjeta con el precio
+            let cur = a;
+            let card = null;
+            for (let i = 0; i < 6; i++) {
+                if (!cur.parentElement) break;
+                cur = cur.parentElement;
+                if (/\$\s*[\d\.]+/g.test(cur.innerText || '')) {
+                    card = cur;
+                    break;
                 }
-                // Intentar extraer nombre desde el texto de la card
-                const lines = cardText.split('\\n').map(l => l.trim()).filter(Boolean);
-                const textName = lines.find(l => !l.includes('$') && l.length > 3 && l.length < 80);
-                if (textName) name = textName;
-                if (!name) continue;
-
-                const fullHref = href.startsWith('http') ? href : `https://www.cruzverde.cl${href.startsWith('/') ? '' : '/'}${href}`;
-                results.push({ nombre: name, precio: priceText, url: fullHref, fuente: "Cruz Verde", disponible: true });
             }
-            return results;
-        }'''
-    
-    items = await page.evaluate(_cv_evaluate_script())
-    
-    # Si no encontramos nada, un segundo intento con 3s más de espera
+            if (!card) continue;
+            seen.add(href);
+
+            const txt = card.innerText.trim();
+            if (/agotado|sin\s*stock|sin\s*existencia|no\s*disponible/i.test(txt)) continue;
+
+            const prices = txt.match(/\$\s*[\d\.]+/g);
+            if (!prices || prices.length === 0) continue;
+
+            // Extraer nombre legible combinando marca o texto relevante
+            const lines = txt.split('\n').map(l => l.trim()).filter(l => l && !l.includes('$') && l.length > 2 && l.length < 90 && !/receta|bioequivalente|destacado|oferta/i.test(l));
+            let name = lines.length > 1 ? `${lines[0]} - ${lines[1]}` : (lines.length === 1 ? lines[0] : '');
+
+            if (!name) {
+                const slugMatch = href.match(/\/([a-zA-Z0-9\-]+)\/\d+\.html/);
+                if (slugMatch) {
+                    name = slugMatch[1].replace(/--+/g, ' - ').replace(/-/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                }
+            }
+
+            const cleanPrice = prices[prices.length - 1].replace(/\s+/g, '');
+            const fullHref = href.startsWith('http') ? href : `https://www.cruzverde.cl${href.startsWith('/') ? '' : '/'}${href}`;
+            results.push({ nombre: name, precio: cleanPrice, url: fullHref, fuente: "Cruz Verde", disponible: true });
+        }
+        return results.slice(0, 6);
+    }"""
+
+    items = await page.evaluate(CV_EVAL)
     if not items:
-        await page.wait_for_timeout(3000)
-        items = await page.evaluate(_cv_evaluate_script())
-    
-    return items[:6]
+        await page.wait_for_timeout(2500)
+        items = await page.evaluate(CV_EVAL)
+    return items
+
+
+
 
 # --- COORDINADOR PRINCIPAL ULTRA RÁPIDO ---
 
