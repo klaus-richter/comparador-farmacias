@@ -151,41 +151,65 @@ function matchPharmacy(itemFuente, targetPharmacy) {
   return false;
 }
 
+// Función con cascadeo inteligente: respeta marcas exactas y evita sustitutos no solicitados
+function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
+  const qLower = (searchProd || "").toLowerCase().trim();
+  const qTokens = qLower.split(/\s+/).filter(t => t.length > 2);
+
+  // 1. Filtrar productos de esta farmacia con precio válido
+  const items = (allResults || [])
+    .filter(item => matchPharmacy(item.fuente, targetPharmacy))
+    .filter(item => parsePriceToNumber(item.precio) !== Infinity);
+
+  if (items.length === 0) return null;
+
+  // 2. Nivel 1: Match Fuerte por término buscado
+  const strongMatches = items.filter(item => {
+    const nameLower = (item.nombre || "").toLowerCase();
+    if (nameLower.includes(qLower)) return true;
+    if (qTokens.length > 0 && qTokens.every(token => nameLower.includes(token))) return true;
+    return false;
+  });
+
+  if (strongMatches.length > 0) {
+    strongMatches.sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
+    return strongMatches[0];
+  }
+
+  // 3. Nivel 2: Si no hubo match fuerte de marca (ej: busco 'eutirox' o 'nariklin' y no existe),
+  // se retorna null para no colar sustitutos ajenos o caros.
+  return null;
+}
+
 function renderRecipeComparison(receta, queryList) {
   pharmacyGrid.innerHTML = "";
   comparisonSummary.innerHTML = "";
 
   const pharmacies = ALL_PHARMACIES;
 
-  // Pre-calcular la farmacia más barata POR MEDICAMENTO
+  // Pre-calcular la farmacia más barata POR MEDICAMENTO con cascadeo
   const cheapestPerMed = {};
   receta.forEach(r => {
     let minPrice = Infinity;
     let minPharmacy = null;
     pharmacies.forEach(fuente => {
-      const items = (r.resultados || [])
-        .filter(item => matchPharmacy(item.fuente, fuente))
-        .sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
-      const best = items[0];
+      const best = getBestItemForPharmacy(r.resultados, fuente, r.producto);
       const p = best ? parsePriceToNumber(best.precio) : Infinity;
       if (p < minPrice) { minPrice = p; minPharmacy = fuente; }
     });
     cheapestPerMed[r.producto] = { pharmacy: minPharmacy, price: minPrice };
   });
 
-  const totals = pharmacies.map(fuente => {
+  let totals = pharmacies.map(fuente => {
     let sum = 0;
+
     let availableCount = 0;
     let starCount = 0;
     const itemsByProd = [];
 
     receta.forEach(r => {
       const prodName = r.producto;
-      const matchingItems = (r.resultados || [])
-        .filter(item => matchPharmacy(item.fuente, fuente))
-        .sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
-
-      const bestItem = matchingItems[0] || null;
+      const bestItem = getBestItemForPharmacy(r.resultados, fuente, prodName);
       const priceNum = bestItem ? parsePriceToNumber(bestItem.precio) : Infinity;
 
       if (priceNum !== Infinity) { 
@@ -207,6 +231,7 @@ function renderRecipeComparison(receta, queryList) {
 
     const isComplete = availableCount === receta.length;
     return { 
+
       fuente, 
       isComplete, 
       totalNum: isComplete ? sum : Infinity, 
@@ -218,25 +243,55 @@ function renderRecipeComparison(receta, queryList) {
     };
   });
 
-  // Ordenamiento solicitado:
-  // 1. Mayor cantidad de estrellitas ⭐ (de más a menos) primero.
-  // 2. Desempate: Menor precio total / subtotal de la receta.
+  // Lógica de ordenamiento solicitada:
+  // 1. Ganador (#1): La farmacia que tenga la receta completa y sea la de MENOR COSTO TOTAL ($).
+  // 2. Lugares #2, #3, #4, #5: Ordenados por mayor cantidad de estrellitas ⭐ (mejores precios unitarios),
+  //    desempatando por menor subtotal/total.
   // 3. Farmacias con 0 disponibilidad al final.
-  totals.sort((a, b) => {
-    if (a.availableCount === 0 && b.availableCount === 0) return 0;
-    if (a.availableCount === 0) return 1;
-    if (b.availableCount === 0) return -1;
+  
+  // Separar farmacias con disponibilidad de las que tienen 0
+  const available = totals.filter(t => t.availableCount > 0);
+  const unavailable = totals.filter(t => t.availableCount === 0);
 
-    // Primer criterio: mayor cantidad de estrellas
+  // Buscar si hay farmacias completas
+  const completePharmacies = available.filter(t => t.isComplete);
+  let winner = null;
+  let remaining = [];
+
+  if (completePharmacies.length > 0) {
+    // La ganadora #1 es la completa con menor precio total
+    completePharmacies.sort((a, b) => a.totalNum - b.totalNum);
+    winner = completePharmacies[0];
+    remaining = available.filter(t => t.fuente !== winner.fuente);
+  } else {
+    // Si ninguna está completa, la primera por estrellas es la ganadora
+    remaining = [...available];
+  }
+
+  // Ordenar el resto de farmacias por:
+  // 1. Mayor cantidad de Estrellas ⭐ (mejores precios unitarios)
+  // 2. A igual cantidad de estrellas: Mayor cantidad de medicamentos disponibles (ej: 4/5 le gana a 3/5)
+  // 3. A igual cantidad de medicamentos: Menor precio total / subtotal ($)
+  remaining.sort((a, b) => {
     if (a.starCount !== b.starCount) {
       return b.starCount - a.starCount;
     }
-
-    // Segundo criterio (desempate): menor valor de la receta
+    if (a.availableCount !== b.availableCount) {
+      return b.availableCount - a.availableCount;
+    }
     const priceA = a.totalNum !== Infinity ? a.totalNum : a.subtotalNum;
     const priceB = b.totalNum !== Infinity ? b.totalNum : b.subtotalNum;
     return priceA - priceB;
   });
+
+  if (winner) {
+    totals = [winner, ...remaining, ...unavailable];
+  } else {
+    totals = [...remaining, ...unavailable];
+  }
+
+
+
 
   comparisonSummary.style.display = "none";
 
