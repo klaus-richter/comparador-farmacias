@@ -3,7 +3,6 @@ const API = window.location.hostname === "localhost" || window.location.hostname
   ? "http://localhost:8000"
   : "https://comparador-backend-201153254876.us-central1.run.app";
 
-
 const statusBar = document.getElementById("status-bar");
 const spinner = document.getElementById("spinner");
 const statusTitle = document.getElementById("status-title");
@@ -24,34 +23,12 @@ const ALL_PHARMACIES = [
   "Ecofarmacias"
 ];
 
-// Mensajes variados, calmantes y descriptivos con emojis
 const DYNAMIC_STEPS = [
-  "🚀 Conectando de forma segura con las 5 farmacias más grandes de Chile...",
-  "🔍 Consultando inventarios en Cruz Verde, Salcobrand, Ahumada, Dr. Simi y Ecofarmacias...",
-  "💊 Conectando con los servidores de Farmacias Ahumada...",
-  "🛒 Verificando promociones y ofertas vigentes en Salcobrand...",
-  "⚡ Extrayendo disponibilidad inmediata en Cruz Verde...",
-  "🧑‍⚕️ Buscando opciones genéricas y bioequivalentes en Dr. Simi...",
-  "🌿 Consultando la base de datos de Ecofarmacias en tiempo real...",
-  "📦 Verificando stock en farmacias online y centros de distribución...",
-  "💰 Detectando descuentos automáticos y precios rebajados...",
-  "🏷️ Identificando si hay convenios o formatos económicos por caja...",
-  "🧪 Cotejando principios activos, dosis y presentaciones exactas...",
-  "📋 Revisando miligramos, comprimidos, cápsulas, jarabes y gotas...",
-  "🔎 Comparando marcas de laboratorio vs. genéricos económicos...",
-  "📊 Calculando el costo por unidad de cada alternativa encontrada...",
-  "⏳ Procesando todas las respuestas en paralelo...",
-  "📈 Cruzando datos de precios entre las 5 cadenas farmacéuticas...",
-  "🏪 Comprobando opciones de compra y retiro o despacho...",
-  "💡 Evaluando cuál es el mix más conveniente para tu bolsillo...",
-  "🎯 Seleccionando los mejores precios para cada medicamento...",
-  "✨ Asignando la estrellita ⭐ al precio más bajo de cada fila...",
-  "🧮 Sumando los totales por farmacia para la receta completa...",
-  "🏆 Ordenando las columnas de la opción más barata a la más cara...",
-  "🎨 Renderizando la tabla comparativa horizontal...",
-  "🔗 Generando enlaces directos para comprar en cada farmacia...",
-  "🚀 Casi listo! Consolidando todos los datos finales...",
-  "🎉 Preparando la comparación definitiva para que ahorres al máximo..."
+  "Revisando catálogo y ofertas disponibles...",
+  "Cotizando en Cruz Verde, Salcobrand y Ahumada...",
+  "Consultando opciones en Dr. Simi y Ecofarmacias...",
+  "Identificando mejores precios y bioequivalentes...",
+  "Optimizando el total de tu receta completa..."
 ];
 
 let progressInterval = null;
@@ -75,7 +52,6 @@ function startWaitingAnimation(query) {
   if (progressInterval) clearInterval(progressInterval);
 
   progressInterval = setInterval(() => {
-    // Incremento suave del porcentaje hasta el 95%
     if (currentPercent < 95) {
       currentPercent += Math.floor(Math.random() * 5) + 3;
       if (currentPercent > 95) currentPercent = 95;
@@ -86,7 +62,6 @@ function startWaitingAnimation(query) {
     const fillEl = document.getElementById("progress-fill");
     if (fillEl) fillEl.style.width = `${currentPercent}%`;
 
-    // Cambiar mensaje a ritmo pausado y legible (~2.6 segundos)
     stepIndex = (stepIndex + 1) % DYNAMIC_STEPS.length;
     statusStep.style.opacity = 0;
     setTimeout(() => {
@@ -105,47 +80,56 @@ function stopWaitingAnimation() {
   if (pctEl) pctEl.textContent = "100%";
   const fillEl = document.getElementById("progress-fill");
   if (fillEl) fillEl.style.width = "100%";
-  spinner.style.display = "none";
-  statusBar.style.display = "none";
+  
+  setTimeout(() => {
+    statusBar.style.display = "none";
+    searchBtn.disabled = false;
+  }, 400);
 }
 
 function showErrorStatus(message) {
-  stopWaitingAnimation();
+  if (progressInterval) clearInterval(progressInterval);
   statusBar.style.display = "flex";
   statusBar.className = "status-bar error";
-  statusTitle.textContent = "⚠️ Ocurrió un problema";
+  spinner.style.display = "none";
+  statusTitle.textContent = "Atención";
   statusStep.textContent = message;
+  statusStep.style.opacity = 1;
+  searchBtn.disabled = false;
 }
 
 function parsePriceToNumber(priceStr) {
-  if (!priceStr || typeof priceStr !== "string") return Infinity;
-  const digits = priceStr.replace(/[^\d]/g, "");
-  if (!digits) return Infinity;
-  const val = parseInt(digits, 10);
-  return isNaN(val) || val <= 0 ? Infinity : val;
+  if (!priceStr) return Infinity;
+  const digits = String(priceStr).replace(/[^\d]/g, "");
+  return digits ? parseInt(digits, 10) : Infinity;
 }
 
-function getPharmacyLogo(fuente) {
-  // Omitido para mantener consistencia visual uniforme entre todas las farmacias
+function getPillClass(pharmacyName) {
+  const name = pharmacyName.toLowerCase();
+  if (name.includes("cruz"))    return "pill-cruz-verde";
+  if (name.includes("salco"))   return "pill-salcobrand";
+  if (name.includes("ahumada")) return "pill-ahumada";
+  if (name.includes("simi"))    return "pill-dr-simi";
+  if (name.includes("eco"))     return "pill-ecofarmacias";
   return "";
 }
 
-function getPillClass(fuente) {
-  const f = (fuente || "").toLowerCase();
-  if (f.includes("ahumada")) return "pill-ahumada";
-  if (f.includes("salco"))   return "pill-salcobrand";
-  if (f.includes("cruz") || f.includes("verde")) return "pill-cruzverde";
-  if (f.includes("simi"))    return "pill-drsimi";
-  if (f.includes("eco"))     return "pill-ecofarmacias";
-  return "pill-default";
+function getPharmacyLogo(pharmacyName) {
+  const name = pharmacyName.toLowerCase();
+  if (name.includes("cruz"))    return `<span class="pharmacy-icon-dot dot-cv"></span>`;
+  if (name.includes("salco"))   return `<span class="pharmacy-icon-dot dot-sb"></span>`;
+  if (name.includes("ahumada")) return `<span class="pharmacy-icon-dot dot-fa"></span>`;
+  if (name.includes("simi"))    return `<span class="pharmacy-icon-dot dot-ds"></span>`;
+  if (name.includes("eco"))     return `<span class="pharmacy-icon-dot dot-eco"></span>`;
+  return "";
 }
 
 function matchPharmacy(itemFuente, targetPharmacy) {
   const i = (itemFuente || "").toLowerCase();
   const t = (targetPharmacy || "").toLowerCase();
-  if (t.includes("ahumada")) return i.includes("ahumada");
+  if (t.includes("cruz"))    return i.includes("cruz");
   if (t.includes("salco"))   return i.includes("salco");
-  if (t.includes("cruz"))    return i.includes("cruz") || i.includes("verde");
+  if (t.includes("ahumada")) return i.includes("ahumada");
   if (t.includes("simi"))    return i.includes("simi");
   if (t.includes("eco"))     return i.includes("eco");
   return false;
@@ -154,13 +138,9 @@ function matchPharmacy(itemFuente, targetPharmacy) {
 function normalizeSearchText(text) {
   if (!text) return "";
   let t = text.toLowerCase();
-  // Separar números de unidades: 100mcg -> 100 mcg, 500mg -> 500 mg, 100comprimidos -> 100 comprimidos
   t = t.replace(/(\d+)\s*(mg|mcg|g|ml|comp|comprimidos|capsulas|sobres)/gi, '$1 $2');
-  // Normalizar acentos
   t = t.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  // Normalizar fonética para i/y, b/v, z/s
   t = t.replace(/y/g, 'i').replace(/v/g, 'b').replace(/z/g, 's');
-  // Limpiar signos
   t = t.replace(/[^\w\s]/g, ' ');
   return t.replace(/\s+/g, ' ').trim();
 }
@@ -172,10 +152,8 @@ function matchProductInteligente(prodName, searchQuery) {
   const qTokens = normQuery.split(/\s+/).filter(tok => tok.length >= 2);
   if (qTokens.length === 0) return true;
 
-  // Palabras no numéricas clave (ej: 'eutirox', 'acido', 'acetilsalicilico', 'avamis')
   const keywords = qTokens.filter(tok => !/^\d+$/.test(tok) && !['comp', 'comprimidos', 'capsulas', 'mg', 'mcg', 'x'].includes(tok));
 
-  // Al menos la primera palabra principal DEBE estar en el producto
   if (keywords.length > 0) {
     const mainWord = keywords[0];
     if (!normProd.includes(mainWord)) {
@@ -183,7 +161,6 @@ function matchProductInteligente(prodName, searchQuery) {
     }
   }
 
-  // Si el usuario especificó dosis numérica (ej: '100', '500', '25', '850'), debe coincidir
   const queryNums = qTokens.filter(tok => /^\d+$/.test(tok));
   if (queryNums.length > 0) {
     const prodNums = normProd.match(/\b\d+\b/g) || [];
@@ -195,16 +172,13 @@ function matchProductInteligente(prodName, searchQuery) {
   return true;
 }
 
-// Función con cascadeo inteligente: respeta marcas exactas y evita sustitutos no solicitados
 function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
-  // 1. Filtrar productos de esta farmacia con precio válido
   const items = (allResults || [])
     .filter(item => matchPharmacy(item.fuente, targetPharmacy))
     .filter(item => parsePriceToNumber(item.precio) !== Infinity);
 
   if (items.length === 0) return null;
 
-  // 2. Filtrar por match inteligente (marca, dosis y fonética)
   const matches = items.filter(item => matchProductInteligente(item.nombre, searchProd));
 
   if (matches.length > 0) {
@@ -215,14 +189,13 @@ function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
   return null;
 }
 
-
 function renderRecipeComparison(receta, queryList) {
   pharmacyGrid.innerHTML = "";
   comparisonSummary.innerHTML = "";
 
   const pharmacies = ALL_PHARMACIES;
 
-  // Pre-calcular la farmacia más barata POR MEDICAMENTO con cascadeo
+  // 1. Pre-calcular la farmacia más barata POR MEDICAMENTO (para la estrellita ⭐)
   const cheapestPerMed = {};
   receta.forEach(r => {
     let minPrice = Infinity;
@@ -235,9 +208,9 @@ function renderRecipeComparison(receta, queryList) {
     cheapestPerMed[r.producto] = { pharmacy: minPharmacy, price: minPrice };
   });
 
+  // 2. Calcular totales por farmacia
   let totals = pharmacies.map(fuente => {
     let sum = 0;
-
     let availableCount = 0;
     let starCount = 0;
     const itemsByProd = [];
@@ -266,7 +239,6 @@ function renderRecipeComparison(receta, queryList) {
 
     const isComplete = availableCount === receta.length;
     return { 
-
       fuente, 
       isComplete, 
       totalNum: isComplete ? sum : Infinity, 
@@ -278,42 +250,24 @@ function renderRecipeComparison(receta, queryList) {
     };
   });
 
-  // Lógica de ordenamiento solicitada:
-  // 1. Ganador (#1): La farmacia que tenga la receta completa y sea la de MENOR COSTO TOTAL ($).
-  // 2. Lugares #2, #3, #4, #5: Ordenados por mayor cantidad de estrellitas ⭐ (mejores precios unitarios),
-  //    desempatando por menor subtotal/total.
-  // 3. Farmacias con 0 disponibilidad al final.
-  
-  // Separar farmacias con disponibilidad de las que tienen 0
+  // 3. Ordenamiento: Ganador #1 (Receta completa + menor precio) -> estrellas -> disponibilidad -> subtotal
   const available = totals.filter(t => t.availableCount > 0);
   const unavailable = totals.filter(t => t.availableCount === 0);
-
-  // Buscar si hay farmacias completas
   const completePharmacies = available.filter(t => t.isComplete);
   let winner = null;
   let remaining = [];
 
   if (completePharmacies.length > 0) {
-    // La ganadora #1 es la completa con menor precio total
     completePharmacies.sort((a, b) => a.totalNum - b.totalNum);
     winner = completePharmacies[0];
     remaining = available.filter(t => t.fuente !== winner.fuente);
   } else {
-    // Si ninguna está completa, la primera por estrellas es la ganadora
     remaining = [...available];
   }
 
-  // Ordenar el resto de farmacias por:
-  // 1. Mayor cantidad de Estrellas ⭐ (mejores precios unitarios)
-  // 2. A igual cantidad de estrellas: Mayor cantidad de medicamentos disponibles (ej: 4/5 le gana a 3/5)
-  // 3. A igual cantidad de medicamentos: Menor precio total / subtotal ($)
   remaining.sort((a, b) => {
-    if (a.starCount !== b.starCount) {
-      return b.starCount - a.starCount;
-    }
-    if (a.availableCount !== b.availableCount) {
-      return b.availableCount - a.availableCount;
-    }
+    if (a.starCount !== b.starCount) return b.starCount - a.starCount;
+    if (a.availableCount !== b.availableCount) return b.availableCount - a.availableCount;
     const priceA = a.totalNum !== Infinity ? a.totalNum : a.subtotalNum;
     const priceB = b.totalNum !== Infinity ? b.totalNum : b.subtotalNum;
     return priceA - priceB;
@@ -325,67 +279,139 @@ function renderRecipeComparison(receta, queryList) {
     totals = [...remaining, ...unavailable];
   }
 
-
-
-
-  comparisonSummary.style.display = "none";
-
-  totals.forEach((pharmacy, idx) => {
-    const isWinner = idx === 0 && pharmacy.availableCount > 0;
-    const pillClass = getPillClass(pharmacy.fuente);
-    const logoHtml = getPharmacyLogo(pharmacy.fuente);
-
-    const col = document.createElement("div");
-    col.className = `pharmacy-column ${isWinner ? "winner" : ""}`;
-
-    const priceDisplayText = pharmacy.totalNum !== Infinity
-      ? `$${pharmacy.totalNum.toLocaleString("es-CL")}`
-      : (pharmacy.availableCount > 0
-          ? `$${pharmacy.subtotalNum.toLocaleString("es-CL")}`
-          : "-");
-
-    col.innerHTML = `
-      <div class="col-header ${isWinner ? "winner-header" : ""}">
-        <div class="pharmacy-badge-title ${pillClass}">
-          ${logoHtml}
-          ${pharmacy.fuente}
-        </div>
-        <span class="rank-badge ${isWinner ? "rank-winner" : "rank-other"}">
-          ${isWinner ? "🏆 Más Económica" : `#${idx + 1}`}
-        </span>
-      </div>
-
-      <div class="col-best-offer">
-        <span class="offer-label">Total de la receta completa:</span>
-        <div class="offer-price-row">
-          <span class="offer-price">${priceDisplayText}</span>
-        </div>
-      </div>
-
-      <div class="col-recipe-items">
-        ${pharmacy.itemsByProd.map(item => `
-          <div class="recipe-item-card ${item.isCheapestHere ? "cheapest-item" : ""}">
-            <div class="recipe-item-head">
-              <span class="recipe-prod-tag">${escapeHtml(item.productoBuscado)}</span>
-              <div class="recipe-item-right">
-                <span class="recipe-prod-price ${item.isCheapestHere ? "cheapest-price" : ""} ${!item.bestItem ? "price-no-stock" : ""}">
-                  ${item.isCheapestHere ? '<span class="star-badge">⭐</span>' : ""}${item.bestItem ? item.bestItem.precio : "Sin stock"}
-                </span>
-                ${item.bestItem && item.bestItem.url ? `
-                  <a href="${item.bestItem.url}" target="_blank" rel="noopener noreferrer" class="icon-link-btn" title="Ver producto en la farmacia">
-                    ↗
-                  </a>
-                ` : `<span class="icon-placeholder"></span>`}
-              </div>
+  // 4. Banner de Ganador #1
+  if (winner && winner.availableCount > 0) {
+    const winnerLogo = getPharmacyLogo(winner.fuente);
+    const winnerPill = getPillClass(winner.fuente);
+    comparisonSummary.innerHTML = `
+      <div class="winner-summary-card">
+        <div class="winner-summary-left">
+          <span class="winner-trophy">🏆</span>
+          <div>
+            <div class="winner-tag">FARMACIA MÁS ECONÓMICA</div>
+            <div class="winner-name-row">
+              <span class="pharmacy-badge-title ${winnerPill}">${winnerLogo} ${winner.fuente}</span>
+              <span class="winner-badge-pill">${winner.availableCount}/${receta.length} disponibles</span>
             </div>
           </div>
-        `).join("")}
+        </div>
+        <div class="winner-summary-right">
+          <span class="winner-price-label">Total de la receta:</span>
+          <span class="winner-total-price">$${winner.totalNum.toLocaleString("es-CL")}</span>
+        </div>
       </div>
     `;
+    comparisonSummary.style.display = "block";
+  } else {
+    comparisonSummary.style.display = "none";
+  }
 
-    pharmacyGrid.appendChild(col);
+  // 5. Generar Matriz Compacta Optimizada para Móvil
+  const matrixWrapper = document.createElement("div");
+  matrixWrapper.className = "matrix-wrapper";
+
+  let tableHtml = `
+    <table class="matrix-table">
+      <thead>
+        <tr>
+          <th class="col-fixed-med">
+            <span class="th-label-med">📋 Medicamento</span>
+          </th>
+          ${totals.map((pharm, idx) => {
+            const isWin = idx === 0 && pharm.availableCount > 0;
+            const logo = getPharmacyLogo(pharm.fuente);
+            const pill = getPillClass(pharm.fuente);
+            const priceText = pharm.totalNum !== Infinity 
+              ? `$${pharm.totalNum.toLocaleString("es-CL")}` 
+              : (pharm.availableCount > 0 ? `$${pharm.subtotalNum.toLocaleString("es-CL")}` : "-");
+            return `
+              <th class="col-pharm ${isWin ? 'th-winner' : ''}">
+                <div class="th-pharm-top">
+                  <span class="rank-badge ${isWin ? 'rank-winner' : 'rank-other'}">${isWin ? '🏆 #1' : '#' + (idx + 1)}</span>
+                  <div class="pharm-title-badge ${pill}">${logo} ${pharm.fuente}</div>
+                </div>
+                <div class="th-pharm-total">
+                  <span class="th-total-amount">${priceText}</span>
+                  <span class="th-total-disp">${pharm.availableCount}/${receta.length} disp</span>
+                </div>
+              </th>
+            `;
+          }).join('')}
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  // Filas por cada medicamento de la receta
+  receta.forEach((r, medIdx) => {
+    const prodName = r.producto;
+    tableHtml += `
+      <tr>
+        <td class="col-fixed-med med-row-cell">
+          <div class="med-info-box">
+            <span class="med-idx">#${medIdx + 1}</span>
+            <span class="med-name-primary">${escapeHtml(prodName)}</span>
+          </div>
+        </td>
+    `;
+
+    totals.forEach(pharm => {
+      const matchData = pharm.itemsByProd.find(it => it.productoBuscado === prodName);
+      const bestItem = matchData ? matchData.bestItem : null;
+      const isStar = matchData ? matchData.isCheapestHere : false;
+
+      if (bestItem && matchData.priceNum !== Infinity) {
+        tableHtml += `
+          <td class="col-pharm price-cell ${isStar ? 'star-winner-cell' : ''}">
+            <div class="price-cell-box">
+              <div class="price-top-line">
+                ${isStar ? '<span class="star-badge" title="Mejor precio">⭐</span>' : ''}
+                <span class="item-price">${escapeHtml(bestItem.precio)}</span>
+                <a href="${bestItem.url}" target="_blank" rel="noopener noreferrer" class="link-arrow" title="Ver en ${pharm.fuente}">↗</a>
+              </div>
+              <span class="item-full-name" title="${escapeHtml(bestItem.nombre)}">${escapeHtml(bestItem.nombre)}</span>
+            </div>
+          </td>
+        `;
+      } else {
+        tableHtml += `
+          <td class="col-pharm price-cell cell-empty">
+            <span class="empty-stock">Sin stock</span>
+          </td>
+        `;
+      }
+    });
+
+    tableHtml += `</tr>`;
   });
 
+  // Fila de Totales al final
+  tableHtml += `
+      </tbody>
+      <tfoot>
+        <tr class="tfoot-row">
+          <td class="col-fixed-med tfoot-label">
+            <strong>TOTAL RECETA</strong>
+          </td>
+          ${totals.map((pharm, idx) => {
+            const isWin = idx === 0 && pharm.availableCount > 0;
+            const priceText = pharm.totalNum !== Infinity 
+              ? `$${pharm.totalNum.toLocaleString("es-CL")}` 
+              : (pharm.availableCount > 0 ? `$${pharm.subtotalNum.toLocaleString("es-CL")}` : "-");
+            return `
+              <td class="col-pharm tfoot-cell ${isWin ? 'tfoot-winner' : ''}">
+                <span class="tfoot-total-price">${priceText}</span>
+                <span class="tfoot-total-count">${pharm.availableCount}/${receta.length} disp</span>
+              </td>
+            `;
+          }).join('')}
+        </tr>
+      </tfoot>
+    </table>
+  `;
+
+  matrixWrapper.innerHTML = tableHtml;
+  pharmacyGrid.appendChild(matrixWrapper);
   resultsWrapper.style.display = "flex";
 }
 
@@ -405,13 +431,13 @@ searchForm.addEventListener("submit", async (e) => {
 
   let queryItems = rawQuery.split(/[,;\n]+/).map(s => s.trim()).filter(Boolean);
 
-  // Validación de texto no válido o copia de instrucciones
   const normalizedQuery = rawQuery.toLowerCase();
   const invalidPhrases = [
     "ingresa los medicamentos",
     "separados por coma",
     "compara precios",
     "maximo 5 medicamentos",
+    "maximo 10 medicamentos",
     "comparador de farmacias",
     "ej:"
   ];
@@ -432,32 +458,29 @@ searchForm.addEventListener("submit", async (e) => {
     setTimeout(() => { statusBar.style.display = "none"; }, 3500);
   }
 
-
-  const isMultiple = queryItems.length > 1;
-
   resultsWrapper.style.display = "none";
   startWaitingAnimation(rawQuery);
   searchBtn.disabled = true;
-  searchBtn.querySelector(".btn-text").textContent = "Comparando...";
-
-  const minWaitPromise = new Promise(resolve => setTimeout(resolve, 2000));
 
   try {
-    const fetchPromise = fetch(`${API}/api/buscar-receta?q=${encodeURIComponent(queryItems.join(","))}`)
-      .then(async res => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-        return await res.json();
-      });
-    const [data] = await Promise.all([fetchPromise, minWaitPromise]);
-    if (data.status === "ok") { 
-      stopWaitingAnimation(); 
-      renderRecipeComparison(data.receta, queryItems); 
+    const encodedQuery = encodeURIComponent(queryItems.join(","));
+    const response = await fetch(`${API}/api/buscar-receta?q=${encodedQuery}`);
+
+    if (!response.ok) {
+      throw new Error(`Error en el servidor (${response.status})`);
+    }
+
+    const data = await response.json();
+    stopWaitingAnimation();
+
+    if (data.receta && data.receta.length > 0) {
+      renderRecipeComparison(data.receta, queryItems);
+    } else {
+      showErrorStatus("No se encontraron resultados para los medicamentos ingresados.");
     }
   } catch (err) {
-    showErrorStatus(`Error conectando con el backend: ${err.message}`);
-  } finally {
-    searchBtn.disabled = false;
-    searchBtn.querySelector(".btn-text").textContent = "Buscar Precios";
+    console.error(err);
+    stopWaitingAnimation();
+    showErrorStatus("No fue posible conectar con el servidor. Intenta nuevamente.");
   }
 });
-
