@@ -166,16 +166,21 @@ function normalizeSearchText(text) {
 }
 
 function matchProductInteligente(prodName, searchQuery) {
+  // 1. Usar motor semántico del ISP si está disponible en ventana
+  if (typeof window !== "undefined" && window.ISPEngine) {
+    const isMatch = window.ISPEngine.matchProductAgainstQuery(prodName, searchQuery);
+    if (isMatch) return true;
+  }
+
+  // 2. Fallback heurístico léxico
   const normProd = normalizeSearchText(prodName);
   const normQuery = normalizeSearchText(searchQuery);
 
   const qTokens = normQuery.split(/\s+/).filter(tok => tok.length >= 2);
   if (qTokens.length === 0) return true;
 
-  // Palabras no numéricas clave (ej: 'eutirox', 'acido', 'acetilsalicilico', 'avamis')
   const keywords = qTokens.filter(tok => !/^\d+$/.test(tok) && !['comp', 'comprimidos', 'capsulas', 'mg', 'mcg', 'x'].includes(tok));
 
-  // Al menos la primera palabra principal DEBE estar en el producto
   if (keywords.length > 0) {
     const mainWord = keywords[0];
     if (!normProd.includes(mainWord)) {
@@ -183,7 +188,6 @@ function matchProductInteligente(prodName, searchQuery) {
     }
   }
 
-  // Si el usuario especificó dosis numérica (ej: '100', '500', '25', '850'), debe coincidir
   const queryNums = qTokens.filter(tok => /^\d+$/.test(tok));
   if (queryNums.length > 0) {
     const prodNums = normProd.match(/\b\d+\b/g) || [];
