@@ -106,7 +106,8 @@ async def buscar_receta(
     refresh: bool = False
 ):
     start = time.time()
-    productos = [p.strip() for p in q.replace("\n", ",").split(",") if p.strip()][:5]
+    productos = [p.strip() for p in q.replace("\n", ",").split(",") if p.strip()][:10]
+
 
     # Ejecutar la búsqueda de todos los medicamentos en paralelo controlado
     tasks = [buscar_un_producto(p, force_refresh=bool(refresh)) for p in productos]
@@ -137,6 +138,22 @@ def cache_status():
         "status": "ok",
         "stats": get_cache_stats()
     }
+
+
+@app.post("/api/admin/daily-sync")
+@app.get("/api/admin/daily-sync")
+async def trigger_daily_sync():
+    """Endpoint para activar la actualización nocturna a las 3:00 AM (desde Cloud Scheduler o Cron)."""
+    try:
+        from backend.scripts.daily_updater import run_daily_update
+        asyncio.create_task(run_daily_update())
+        return {
+            "status": "ok",
+            "message": "🌙 Actualización nocturna iniciada exitosamente en segundo plano con protección anti-bot."
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 
 @app.post("/api/cache/clean")
 def cache_clean():
