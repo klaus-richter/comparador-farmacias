@@ -2379,6 +2379,33 @@ const ISP_DATA = {
   }
 };
 
+const FORM_CATEGORIES = {
+  "nasal": {
+    "keywords": ["nasal", "spray", "inhalador", "nebulizador", "puff", "dosis", "aerosol"],
+    "conflicts": ["crema", "gel", "pomada", "unguento", "dermico", "dermica", "comprimidos", "capsulas", "jarabe", "ovulos"]
+  },
+  "crema": {
+    "keywords": ["crema", "unguento", "pomada", "dermico", "dermica", "gel", "emulgel", "topico", "topica"],
+    "conflicts": ["nasal", "spray", "jarabe", "comprimidos", "capsulas", "gotas", "inhalador", "ovulos"]
+  },
+  "gel": {
+    "keywords": ["gel", "emulgel", "topico", "topica", "crema", "unguento"],
+    "conflicts": ["nasal", "jarabe", "comprimidos", "capsulas", "gotas", "inhalador"]
+  },
+  "jarabe": {
+    "keywords": ["jarabe", "suspension", "solucion oral", "elixir"],
+    "conflicts": ["comprimidos", "capsulas", "crema", "gel", "pomada", "unguento", "spray", "nasal", "ovulos"]
+  },
+  "gotas": {
+    "keywords": ["gotas", "solucion oral", "solucion oftalmica", "oftalmico", "otico", "colirio"],
+    "conflicts": ["comprimidos", "capsulas", "crema", "pomada", "unguento"]
+  },
+  "comprimidos": {
+    "keywords": ["comprimidos", "capsulas", "tabletas", "grajeas", "comp", "sobres", "caps", "recubiertos"],
+    "conflicts": ["jarabe", "crema", "gel", "pomada", "unguento", "spray", "nasal", "gotas", "solucion"]
+  }
+};
+
 const ISPEngineClient = {
   normalize: function(text) {
     if (!text) return "";
@@ -2442,7 +2469,6 @@ const ISPEngineClient = {
     const qTokens = normQuery.split(/\s+/).filter(tok => tok.length >= 2);
     
     // CANDADO 1: GATEKEEPER ESTRICTO DE DOSIS MÉDICA
-    // Si el usuario busca 'eutirox 100', el producto NO puede ser de 50mcg.
     const queryNums = qTokens.filter(tok => /^\d+$/.test(tok));
     if (queryNums.length > 0) {
       const prodNums = normProd.match(/\b\d+\b/g) || [];
@@ -2451,8 +2477,23 @@ const ISPEngineClient = {
       }
     }
 
+    // CANDADO 2: GATEKEEPER ESTRICTO DE FORMA FARMACÉUTICA (Nasal vs Crema vs Jarabe vs Comprimidos)
+    for (const [formKey, formInfo] of Object.entries(FORM_CATEGORIES)) {
+      if (normQuery.includes(formKey) || formInfo.keywords.some(kw => normQuery.split(/\s+/).includes(kw))) {
+        const prodWords = normProd.split(/\s+/);
+        // Si el producto tiene conflicto explícito (ej: 'crema' cuando se pidió 'nasal'), RECHAZAR
+        if (formInfo.conflicts.some(cf => prodWords.includes(cf) || normProd.includes(cf))) {
+          return false;
+        }
+        // Si el producto no contiene ningún indicador de la forma solicitada, RECHAZAR
+        if (!formInfo.keywords.some(kw => normProd.includes(kw))) {
+          return false;
+        }
+      }
+    }
+
     // 1. Match directo de palabras clave
-    const keywords = qTokens.filter(tok => !/^\d+$/.test(tok) && !['comp', 'comprimidos', 'capsulas', 'mg', 'mcg', 'x'].includes(tok));
+    const keywords = qTokens.filter(tok => !/^\d+$/.test(tok) && !['comp', 'comprimidos', 'capsulas', 'mg', 'mcg', 'x', 'nasal', 'crema', 'jarabe', 'gel'].includes(tok));
     if (keywords.length > 0 && keywords.every(k => normProd.includes(k))) {
       return true;
     }
