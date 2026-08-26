@@ -179,3 +179,10 @@ def get_visits():
     from backend.cache import increment_and_get_visits
     count = increment_and_get_visits()
     return {"visitas": count}
+
+
+@app.get("/api/isp/resolve")
+def resolve_isp(q: str = Query(..., description="Nombre del medicamento o principio activo")):
+    """Consulta semántica oficial al registro farmacéutico del ISP Chile."""
+    from backend.isp_engine import isp_engine
+    return isp_engine.resolve_term(q)
