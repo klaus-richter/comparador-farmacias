@@ -1,3 +1,4 @@
+import asyncio
 import os
 import json
 import time
@@ -165,7 +166,7 @@ def save_cached_results(query: str, data: Dict[str, Any], custom_expires_at: Opt
     Guarda o actualiza los resultados en cache.
     CANDADO DE SEGURIDAD: NUNCA guarda resultados vacíos (total == 0) para no envenenar la base de datos con falsos 'Sin Stock'.
     """
-    raw_results: List[Dict[str, Any]] = data.get("resultados", [])
+    raw_results: List[Dict[str, Any]] = data.get("resultados", []) if isinstance(data, dict) else (data if isinstance(data, list) else [])
     clean_results = []
     iso_now = datetime.now().isoformat()
     now = time.time()
@@ -192,7 +193,7 @@ def save_cached_results(query: str, data: Dict[str, Any], custom_expires_at: Opt
         return
 
     norm_query = _normalize_query(query)
-    cobertura = data.get("cobertura", {})
+    cobertura = data.get("cobertura", {}) if isinstance(data, dict) else {}
     payload = json.dumps({
         "resultados": clean_results,
         "cobertura": cobertura
