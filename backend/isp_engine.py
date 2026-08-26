@@ -8,7 +8,7 @@ DICT_PATH = os.path.join(os.path.dirname(__file__), "data", "isp_dictionary.json
 
 FORM_CATEGORIES = {
     "nasal": {
-        "keywords": ["nasal", "spray", "inhalador", "nebulizador", "puff", "dosis", "aerosol"],
+        "keywords": ["nasal", "spray", "inhalador", "nebulizador", "puff", "dosis", "aerosol", "gotas nasales"],
         "conflicts": ["crema", "gel", "pomada", "unguento", "dermico", "dermica", "comprimidos", "capsulas", "jarabe", "ovulos"]
     },
     "crema": {
@@ -29,7 +29,7 @@ FORM_CATEGORIES = {
     },
     "comprimidos": {
         "keywords": ["comprimidos", "capsulas", "tabletas", "grajeas", "comp", "sobres", "caps", "recubiertos"],
-        "conflicts": ["jarabe", "crema", "gel", "pomada", "unguento", "spray", "nasal", "gotas", "solucion"]
+        "conflicts": ["jarabe", "crema", "gel", "pomada", "unguento", "spray", "nasal", "gotas"]
     }
 }
 
@@ -86,8 +86,6 @@ class ISPEngine:
                         "principio_activo": info.get("key_original", candidate),
                         "nombre_oficial": info.get("nombre_oficial", candidate),
                         "clase_terapeutica": info.get("clase_terapeutica", ""),
-                        "marcas_registradas": info.get("marcas", []),
-                        "dosis_comunes": info.get("dosis_comunes", []),
                         "bioequivalente": info.get("bioequivalente", False)
                     }
 
@@ -102,8 +100,6 @@ class ISPEngine:
                         "principio_activo": info.get("key_original", p_norm_key),
                         "nombre_oficial": info.get("nombre_oficial", p_norm_key),
                         "clase_terapeutica": info.get("clase_terapeutica", ""),
-                        "marcas_hermanas": [m for m in info.get("marcas", []) if self.normalize(m) != candidate],
-                        "dosis_comunes": info.get("dosis_comunes", []),
                         "bioequivalente": info.get("bioequivalente", False)
                     }
 
@@ -111,8 +107,7 @@ class ISPEngine:
             "encontrado": False,
             "tipo": "DESCONOCIDO",
             "termino_buscado": term,
-            "principio_activo": None,
-            "marcas_registradas": []
+            "principio_activo": None
         }
 
     def match_product_against_query(self, product_name: str, search_query: str) -> Tuple[bool, str]:
@@ -121,41 +116,23 @@ class ISPEngine:
 
         q_tokens = [t for t in norm_query.split() if len(t) >= 2]
         
-        # CANDADO 1: GATEKEEPER ESTRICTO DE DOSIS MÉDICA
+        # 1. CANDADO DE DOSIS MÉDICA (Rechaza 50 cuando se pide 100)
         query_nums = [t for t in q_tokens if t.isdigit()]
         if query_nums:
             prod_nums = re.findall(r'\b\d+\b', norm_prod)
             if not any(num in prod_nums for num in query_nums):
                 return False, "MISMATCH_DOSIS"
 
-        # CANDADO 2: GATEKEEPER ESTRICTO DE FORMA FARMACÉUTICA (Nasal vs Crema vs Jarabe vs Comprimidos)
+        # 2. CANDADO DE FORMA FARMACÉUTICA (Rechaza crema cuando se pide nasal)
         for form_key, form_info in FORM_CATEGORIES.items():
             if form_key in norm_query or any(kw in norm_query.split() for kw in form_info["keywords"]):
-                # Si el producto tiene un término en conflicto explícito (ej: 'crema' cuando se pidió 'nasal'), RECHAZAR
                 prod_tokens = norm_prod.split()
                 if any(cf in prod_tokens or cf in norm_prod for cf in form_info["conflicts"]):
-                    return False, f"MISMATCH_FORMA (Conflicto con forma '{form_key}')"
-                # Si el producto no contiene ningún indicador de la forma solicitada, RECHAZAR
+                    return False, f"MISMATCH_FORMA_CONFLICTO ({form_key})"
                 if not any(kw in norm_prod for kw in form_info["keywords"]):
-                    return False, f"MISMATCH_FORMA (No contiene forma '{form_key}')"
+                    return False, f"MISMATCH_FORMA_FALTA ({form_key})"
 
-        # 1. Match directo de palabras clave
-        keywords = [t for t in q_tokens if not t.isdigit() and t not in ['comp', 'comprimidos', 'capsulas', 'mg', 'mcg', 'nasal', 'crema', 'jarabe', 'gel']]
-        if keywords and all(k in norm_prod for k in keywords):
-            return True, "MATCH_TEXTO_DIRECTO"
-
-        # 2. Match por Diccionario ISP
-        q_info = self.resolve_term(search_query)
-        if q_info["encontrado"]:
-            norm_p_key = self.normalize(q_info["principio_activo"])
-            if norm_p_key in norm_prod:
-                return True, "MATCH_ISP_PRINCIPIO_ACTIVO"
-
-            brands = self.principios_activos.get(norm_p_key, {}).get("marcas_norm", [])
-            for b in brands:
-                if b in norm_prod:
-                    return True, f"MATCH_ISP_MARCA_EQUIVALENTE ({b})"
-
-        return False, "NO_MATCH"
+        # 3. MATCH INCLUSIVO: Si pasó los candados médicos, es un producto válido retornado por la farmacia
+        return True, "MATCH_VALIDO"
 
 isp_engine = ISPEngine()
