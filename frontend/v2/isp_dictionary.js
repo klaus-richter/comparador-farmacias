@@ -1,5 +1,5 @@
 // Diccionario Farmacéutico Oficial ISP Chile
-// Resolución semántica instantánea en cliente (0ms)
+// Puente Semántico para resolución de Marca -> Principio Activo
 const ISP_DATA = {
   "version": "1.0.0",
   "pais": "Chile",
@@ -2432,7 +2432,7 @@ const ISP_DATA = {
 
 const FORM_CATEGORIES = {
   "nasal": {
-    "keywords": ["nasal", "spray", "inhalador", "nebulizador", "puff", "dosis", "aerosol"],
+    "keywords": ["nasal", "spray", "inhalador", "nebulizador", "puff", "dosis", "aerosol", "gotas nasales"],
     "conflicts": ["crema", "gel", "pomada", "unguento", "dermico", "dermica", "comprimidos", "capsulas", "jarabe", "ovulos"]
   },
   "crema": {
@@ -2453,7 +2453,7 @@ const FORM_CATEGORIES = {
   },
   "comprimidos": {
     "keywords": ["comprimidos", "capsulas", "tabletas", "grajeas", "comp", "sobres", "caps", "recubiertos"],
-    "conflicts": ["jarabe", "crema", "gel", "pomada", "unguento", "spray", "nasal", "gotas", "solucion"]
+    "conflicts": ["jarabe", "crema", "gel", "pomada", "unguento", "spray", "nasal", "gotas"]
   }
 };
 
@@ -2486,7 +2486,6 @@ const ISPEngineClient = {
               principio_activo: k,
               nombre_oficial: info.nombre_oficial || k,
               clase_terapeutica: info.clase_terapeutica || "",
-              marcas: info.marcas || [],
               bioequivalente: info.bioequivalente || false
             };
           }
@@ -2502,7 +2501,6 @@ const ISPEngineClient = {
               principio_activo: pKey,
               nombre_oficial: info.nombre_oficial || pKey,
               clase_terapeutica: info.clase_terapeutica || "",
-              marcas_hermanas: (info.marcas || []).filter(x => this.normalize(x) !== cand),
               bioequivalente: info.bioequivalente || false
             };
           }
@@ -2510,7 +2508,7 @@ const ISPEngineClient = {
       }
     }
 
-    return { encontrado: false, tipo: "DESCONOCIDO", principio_activo: null, marcas: [] };
+    return { encontrado: false, tipo: "DESCONOCIDO", principio_activo: null };
   },
 
   matchProductAgainstQuery: function(productName, searchQuery) {
@@ -2519,7 +2517,7 @@ const ISPEngineClient = {
 
     const qTokens = normQuery.split(/\s+/).filter(tok => tok.length >= 2);
     
-    // CANDADO 1: GATEKEEPER ESTRICTO DE DOSIS MÉDICA
+    // 1. CANDADO DE DOSIS MÉDICA
     const queryNums = qTokens.filter(tok => /^\d+$/.test(tok));
     if (queryNums.length > 0) {
       const prodNums = normProd.match(/\b\d+\b/g) || [];
@@ -2528,41 +2526,21 @@ const ISPEngineClient = {
       }
     }
 
-    // CANDADO 2: GATEKEEPER ESTRICTO DE FORMA FARMACÉUTICA (Nasal vs Crema vs Jarabe vs Comprimidos)
+    // 2. CANDADO DE FORMA FARMACÉUTICA
     for (const [formKey, formInfo] of Object.entries(FORM_CATEGORIES)) {
       if (normQuery.includes(formKey) || formInfo.keywords.some(kw => normQuery.split(/\s+/).includes(kw))) {
         const prodWords = normProd.split(/\s+/);
-        // Si el producto tiene conflicto explícito (ej: 'crema' cuando se pidió 'nasal'), RECHAZAR
         if (formInfo.conflicts.some(cf => prodWords.includes(cf) || normProd.includes(cf))) {
           return false;
         }
-        // Si el producto no contiene ningún indicador de la forma solicitada, RECHAZAR
         if (!formInfo.keywords.some(kw => normProd.includes(kw))) {
           return false;
         }
       }
     }
 
-    // 1. Match directo de palabras clave
-    const keywords = qTokens.filter(tok => !/^\d+$/.test(tok) && !['comp', 'comprimidos', 'capsulas', 'mg', 'mcg', 'x', 'nasal', 'crema', 'jarabe', 'gel'].includes(tok));
-    if (keywords.length > 0 && keywords.every(k => normProd.includes(k))) {
-      return true;
-    }
-
-    // 2. Match por Diccionario ISP
-    const qInfo = this.resolveTerm(searchQuery);
-    if (qInfo.encontrado) {
-      const normPKey = this.normalize(qInfo.principio_activo);
-      if (normProd.includes(normPKey)) return true;
-
-      const pInfo = (ISP_DATA.principios_activos || {})[qInfo.principio_activo] || {};
-      const brands = pInfo.marcas || [];
-      for (const b of brands) {
-        if (normProd.includes(this.normalize(b))) return true;
-      }
-    }
-
-    return false;
+    // 3. MATCH INCLUSIVO (Sin restricciones de listas cerradas)
+    return true;
   }
 };
 
