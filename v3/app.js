@@ -166,16 +166,21 @@ function normalizeSearchText(text) {
 }
 
 function matchProductInteligente(prodName, searchQuery) {
+  // 1. Usar motor semántico del ISP si está disponible en ventana
+  if (typeof window !== "undefined" && window.ISPEngine) {
+    const isMatch = window.ISPEngine.matchProductAgainstQuery(prodName, searchQuery);
+    if (isMatch) return true;
+  }
+
+  // 2. Fallback heurístico léxico
   const normProd = normalizeSearchText(prodName);
   const normQuery = normalizeSearchText(searchQuery);
 
   const qTokens = normQuery.split(/\s+/).filter(tok => tok.length >= 2);
   if (qTokens.length === 0) return true;
 
-  // Palabras no numéricas clave (ej: 'eutirox', 'acido', 'acetilsalicilico', 'avamis')
   const keywords = qTokens.filter(tok => !/^\d+$/.test(tok) && !['comp', 'comprimidos', 'capsulas', 'mg', 'mcg', 'x'].includes(tok));
 
-  // Al menos la primera palabra principal DEBE estar en el producto
   if (keywords.length > 0) {
     const mainWord = keywords[0];
     if (!normProd.includes(mainWord)) {
@@ -183,7 +188,6 @@ function matchProductInteligente(prodName, searchQuery) {
     }
   }
 
-  // Si el usuario especificó dosis numérica (ej: '100', '500', '25', '850'), debe coincidir
   const queryNums = qTokens.filter(tok => /^\d+$/.test(tok));
   if (queryNums.length > 0) {
     const prodNums = normProd.match(/\b\d+\b/g) || [];
@@ -345,39 +349,6 @@ function renderRecipeComparison(receta, queryList) {
 
   comparisonSummary.style.display = "none";
 
-  // Columna 0: Medicamentos (Nombre solo 1 vez en columna izquierda)
-  const medsCol = document.createElement("div");
-  medsCol.className = "pharmacy-column meds-column";
-  medsCol.innerHTML = `
-    <div class="col-header">
-      <div class="pharmacy-badge-title">
-        <span class="pharmacy-icon-dot dot-cv"></span>
-        Medicamentos
-      </div>
-      <span class="rank-badge rank-other">${receta.length}</span>
-    </div>
-    <div class="col-best-offer">
-      <span class="offer-label">Lista de tu Receta</span>
-      <div class="offer-price-row">
-        <span class="offer-price" style="font-size: 1.35rem; color: #475569;">${receta.length} Fármacos</span>
-      </div>
-    </div>
-    <div class="col-recipe-items">
-      ${receta.map((r, idx) => `
-        <div class="recipe-item-card med-title-card">
-          <div class="recipe-item-head">
-            <span class="med-number-tag">#${idx + 1}</span>
-            <span class="recipe-prod-tag" style="font-weight: 700;" title="${escapeHtml(r.producto)}">
-              ${escapeHtml(r.producto)}
-            </span>
-          </div>
-        </div>
-      `).join("")}
-    </div>
-  `;
-  pharmacyGrid.appendChild(medsCol);
-
-  // Columnas 1 a 5: Farmacias (Con la estética exacta de v2)
   totals.forEach((pharmacy, idx) => {
     const isWinner = idx === 0 && pharmacy.availableCount > 0;
     const pillClass = getPillClass(pharmacy.fuente);
@@ -413,13 +384,14 @@ function renderRecipeComparison(receta, queryList) {
       <div class="col-recipe-items">
         ${pharmacy.itemsByProd.map(item => `
           <div class="recipe-item-card ${item.isCheapestHere ? "cheapest-item" : ""}">
-            <div class="recipe-item-head" style="justify-content: flex-end;">
-              <div class="recipe-item-right" style="width: 100%; justify-content: space-between;">
+            <div class="recipe-item-head">
+              <span class="recipe-prod-tag">${escapeHtml(item.productoBuscado)}</span>
+              <div class="recipe-item-right">
                 <span class="recipe-prod-price ${item.isCheapestHere ? "cheapest-price" : ""} ${!item.bestItem ? "price-no-stock" : ""}">
                   ${item.isCheapestHere ? '<span class="star-badge">⭐</span>' : ""}${item.bestItem ? item.bestItem.precio : "Sin stock"}
                 </span>
                 ${item.bestItem && item.bestItem.url ? `
-                  <a href="${item.bestItem.url}" target="_blank" rel="noopener noreferrer" class="icon-link-btn" title="Ver producto en ${pharmacy.fuente}">
+                  <a href="${item.bestItem.url}" target="_blank" rel="noopener noreferrer" class="icon-link-btn" title="Ver producto en la farmacia">
                     ↗
                   </a>
                 ` : `<span class="icon-placeholder"></span>`}
