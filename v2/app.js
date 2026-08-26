@@ -1,7 +1,8 @@
-// Configuración de API (soporta local y despliegue en la nube para GitHub Pages)
+// Configuración de API (soporta local y despliegue en Google Cloud Run para GitHub Pages)
 const API = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
   ? "http://localhost:8000"
-  : "https://comparador-farmacias-2.onrender.com";
+  : "https://comparador-backend-201153254876.us-central1.run.app";
+
 
 const statusBar = document.getElementById("status-bar");
 const spinner = document.getElementById("spinner");
@@ -150,22 +151,103 @@ function matchPharmacy(itemFuente, targetPharmacy) {
   return false;
 }
 
+function normalizeSearchText(text) {
+  if (!text) return "";
+  let t = text.toLowerCase();
+  // Separar números de unidades: 100mcg -> 100 mcg, 500mg -> 500 mg, 100comprimidos -> 100 comprimidos
+  t = t.replace(/(\d+)\s*(mg|mcg|g|ml|comp|comprimidos|capsulas|sobres)/gi, '$1 $2');
+  // Normalizar acentos
+  t = t.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  // Normalizar fonética para i/y, b/v, z/s
+  t = t.replace(/y/g, 'i').replace(/v/g, 'b').replace(/z/g, 's');
+  // Limpiar signos
+  t = t.replace(/[^\w\s]/g, ' ');
+  return t.replace(/\s+/g, ' ').trim();
+}
+
+function matchProductInteligente(prodName, searchQuery) {
+  // 1. Usar motor semántico del ISP si está disponible en ventana
+  if (typeof window !== "undefined" && window.ISPEngine) {
+    const isMatch = window.ISPEngine.matchProductAgainstQuery(prodName, searchQuery);
+    if (isMatch) return true;
+  }
+
+  // 2. Fallback heurístico léxico
+  const normProd = normalizeSearchText(prodName);
+  const normQuery = normalizeSearchText(searchQuery);
+
+  const qTokens = normQuery.split(/\s+/).filter(tok => tok.length >= 2);
+  if (qTokens.length === 0) return true;
+
+  const keywords = qTokens.filter(tok => !/^\d+$/.test(tok) && !['comp', 'comprimidos', 'capsulas', 'mg', 'mcg', 'x'].includes(tok));
+
+  if (keywords.length > 0) {
+    const mainWord = keywords[0];
+    if (!normProd.includes(mainWord)) {
+      return false;
+    }
+  }
+
+  const queryNums = qTokens.filter(tok => /^\d+$/.test(tok));
+  if (queryNums.length > 0) {
+    const prodNums = normProd.match(/\b\d+\b/g) || [];
+    if (!queryNums.some(num => prodNums.includes(num))) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+// Función con cascadeo inteligente: respeta marcas exactas y evita sustitutos no solicitados
+function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
+  // 1. Filtrar productos de esta farmacia con precio válido
+  const items = (allResults || [])
+    .filter(item => matchPharmacy(item.fuente, targetPharmacy))
+    .filter(item => parsePriceToNumber(item.precio) !== Infinity);
+
+  if (items.length === 0) return null;
+
+  // TIER 1: Coincidencia directa con la palabra clave o marca buscada
+  const exactMatches = items.filter(item => matchProductInteligente(item.nombre, searchProd));
+  if (exactMatches.length > 0) {
+    exactMatches.sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
+    return exactMatches[0];
+  }
+
+  // TIER 2: Fallback Inteligente cuando se busca por Principio Activo (ej: rupatadina en Ahumada que solo titula como Rupax/Rexanel)
+  const normQuery = normalizeSearchText(searchProd);
+  const queryNums = normQuery.split(/\s+/).filter(tok => /^\d+$/.test(tok));
+  
+  let fallbackCandidates = items;
+  if (queryNums.length > 0) {
+    const doseMatches = items.filter(item => {
+      const prodNums = normalizeSearchText(item.nombre).match(/\b\d+\b/g) || [];
+      return queryNums.some(num => prodNums.includes(num));
+    });
+    if (doseMatches.length > 0) {
+      fallbackCandidates = doseMatches;
+    }
+  }
+
+  fallbackCandidates.sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
+  return fallbackCandidates[0];
+}
+
+
 function renderRecipeComparison(receta, queryList) {
   pharmacyGrid.innerHTML = "";
   comparisonSummary.innerHTML = "";
 
   const pharmacies = ALL_PHARMACIES;
 
-  // Pre-calcular la farmacia más barata POR MEDICAMENTO
+  // Pre-calcular la farmacia más barata POR MEDICAMENTO con cascadeo
   const cheapestPerMed = {};
   receta.forEach(r => {
     let minPrice = Infinity;
     let minPharmacy = null;
     pharmacies.forEach(fuente => {
-      const items = (r.resultados || [])
-        .filter(item => matchPharmacy(item.fuente, fuente))
-        .sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
-      const best = items[0];
+      const best = getBestItemForPharmacy(r.resultados, fuente, r.producto);
       const p = best ? parsePriceToNumber(best.precio) : Infinity;
       if (p < minPrice) { minPrice = p; minPharmacy = fuente; }
     });
@@ -181,11 +263,7 @@ function renderRecipeComparison(receta, queryList) {
 
     receta.forEach(r => {
       const prodName = r.producto;
-      const matchingItems = (r.resultados || [])
-        .filter(item => matchPharmacy(item.fuente, fuente))
-        .sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
-
-      const bestItem = matchingItems[0] || null;
+      const bestItem = getBestItemForPharmacy(r.resultados, fuente, prodName);
       const priceNum = bestItem ? parsePriceToNumber(bestItem.precio) : Infinity;
 
       if (priceNum !== Infinity) { 
@@ -207,6 +285,7 @@ function renderRecipeComparison(receta, queryList) {
 
     const isComplete = availableCount === receta.length;
     return { 
+
       fuente, 
       isComplete, 
       totalNum: isComplete ? sum : Infinity, 
@@ -364,13 +443,14 @@ searchForm.addEventListener("submit", async (e) => {
     return;
   }
 
-  // Limitar a 5 medicamentos máximo
-  if (queryItems.length > 5) {
-    queryItems = queryItems.slice(0, 5);
+  // Limitar a 10 medicamentos máximo
+  if (queryItems.length > 10) {
+    queryItems = queryItems.slice(0, 10);
     searchInput.value = queryItems.join(", ");
-    showErrorStatus("⚠️ Máximo 5 medicamentos por búsqueda. Se tomaron los primeros 5.");
+    showErrorStatus("⚠️ Máximo 10 medicamentos por búsqueda. Se tomaron los primeros 10.");
     setTimeout(() => { statusBar.style.display = "none"; }, 3500);
   }
+
 
   const isMultiple = queryItems.length > 1;
 
@@ -400,3 +480,30 @@ searchForm.addEventListener("submit", async (e) => {
   }
 });
 
+
+
+
+
+// Contador discreto de visitas
+async function initVisitorCounter() {
+  const el = document.getElementById("visit-counter");
+  if (!el) return;
+  try {
+    const res = await fetch(`${API}/api/visitas`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.visitas !== undefined) {
+        el.textContent = `${Number(data.visitas).toLocaleString("es-CL")} visitas`;
+      }
+    } else {
+      el.textContent = "Comparador Activo";
+    }
+  } catch (e) {
+    el.textContent = "Comparador Activo";
+  }
+}
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initVisitorCounter);
+} else {
+  initVisitorCounter();
+}
