@@ -491,3 +491,43 @@ if (document.readyState === "loading") {
 } else {
   
 }
+
+// Telemetría Silenciosa (Búsquedas y Clics)
+function trackSearchEvent(receta, queryList, elapsedSecs) {
+  try {
+    const winnerCard = document.querySelector('.pharmacy-card.winner h2, .winner .pharmacy-header h2');
+    const winnerPharmacy = winnerCard ? winnerCard.innerText.replace(/[^a-zA-Z\s\.]/g, '').trim() : null;
+    const winnerTotalEl = document.querySelector('.winner .total-amount, .winner .pharmacy-total');
+    const winnerPrice = winnerTotalEl ? winnerTotalEl.innerText.trim() : null;
+
+    fetch(`${API_BASE_URL}/api/analytics/search`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: queryList.join(", "),
+        med_count: queryList.length,
+        elapsed_ms: Math.round((elapsedSecs || 0) * 1000),
+        is_cache: elapsedSecs < 1.5,
+        winner_pharmacy: winnerPharmacy,
+        winner_price: winnerPrice,
+        user_agent: navigator.userAgent
+      })
+    }).catch(() => {});
+  } catch (e) {}
+}
+
+function trackClickEvent(medicineName, pharmacyName, price, url, isCheapest) {
+  try {
+    fetch(`${API_BASE_URL}/api/analytics/click`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        medicine: medicineName,
+        pharmacy: pharmacyName,
+        price: price,
+        url: url,
+        is_cheapest: !!isCheapest
+      })
+    }).catch(() => {});
+  } catch (e) {}
+}
