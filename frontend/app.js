@@ -166,16 +166,21 @@ function normalizeSearchText(text) {
 }
 
 function matchProductInteligente(prodName, searchQuery) {
+  // 1. Usar motor semántico del ISP si está disponible en ventana
+  if (typeof window !== "undefined" && window.ISPEngine) {
+    const isMatch = window.ISPEngine.matchProductAgainstQuery(prodName, searchQuery);
+    if (isMatch) return true;
+  }
+
+  // 2. Fallback heurístico léxico
   const normProd = normalizeSearchText(prodName);
   const normQuery = normalizeSearchText(searchQuery);
 
   const qTokens = normQuery.split(/\s+/).filter(tok => tok.length >= 2);
   if (qTokens.length === 0) return true;
 
-  // Palabras no numéricas clave (ej: 'eutirox', 'acido', 'acetilsalicilico', 'avamis')
   const keywords = qTokens.filter(tok => !/^\d+$/.test(tok) && !['comp', 'comprimidos', 'capsulas', 'mg', 'mcg', 'x'].includes(tok));
 
-  // Al menos la primera palabra principal DEBE estar en el producto
   if (keywords.length > 0) {
     const mainWord = keywords[0];
     if (!normProd.includes(mainWord)) {
@@ -183,7 +188,6 @@ function matchProductInteligente(prodName, searchQuery) {
     }
   }
 
-  // Si el usuario especificó dosis numérica (ej: '100', '500', '25', '850'), debe coincidir
   const queryNums = qTokens.filter(tok => /^\d+$/.test(tok));
   if (queryNums.length > 0) {
     const prodNums = normProd.match(/\b\d+\b/g) || [];
@@ -204,15 +208,30 @@ function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
 
   if (items.length === 0) return null;
 
-  // 2. Filtrar por match inteligente (marca, dosis y fonética)
-  const matches = items.filter(item => matchProductInteligente(item.nombre, searchProd));
-
-  if (matches.length > 0) {
-    matches.sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
-    return matches[0];
+  // TIER 1: Coincidencia directa con la palabra clave o marca buscada
+  const exactMatches = items.filter(item => matchProductInteligente(item.nombre, searchProd));
+  if (exactMatches.length > 0) {
+    exactMatches.sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
+    return exactMatches[0];
   }
 
-  return null;
+  // TIER 2: Fallback Inteligente cuando se busca por Principio Activo (ej: rupatadina en Ahumada que solo titula como Rupax/Rexanel)
+  const normQuery = normalizeSearchText(searchProd);
+  const queryNums = normQuery.split(/\s+/).filter(tok => /^\d+$/.test(tok));
+  
+  let fallbackCandidates = items;
+  if (queryNums.length > 0) {
+    const doseMatches = items.filter(item => {
+      const prodNums = normalizeSearchText(item.nombre).match(/\b\d+\b/g) || [];
+      return queryNums.some(num => prodNums.includes(num));
+    });
+    if (doseMatches.length > 0) {
+      fallbackCandidates = doseMatches;
+    }
+  }
+
+  fallbackCandidates.sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
+  return fallbackCandidates[0];
 }
 
 
@@ -461,3 +480,30 @@ searchForm.addEventListener("submit", async (e) => {
   }
 });
 
+
+
+
+
+// Contador discreto de visitas
+async function initVisitorCounter() {
+  const el = document.getElementById("visit-counter");
+  if (!el) return;
+  try {
+    const res = await fetch(`${API}/api/visitas`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.visitas !== undefined) {
+        el.textContent = `${Number(data.visitas).toLocaleString("es-CL")} visitas`;
+      }
+    } else {
+      el.textContent = "Comparador Activo";
+    }
+  } catch (e) {
+    el.textContent = "Comparador Activo";
+  }
+}
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initVisitorCounter);
+} else {
+  initVisitorCounter();
+}
