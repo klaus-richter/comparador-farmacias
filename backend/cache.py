@@ -114,22 +114,24 @@ def get_cached_results(query: str) -> Optional[Dict[str, Any]]:
                 )
                 row = cursor.fetchone()
 
-            # 3. Intento de auto-corrección difusa con difflib (cutoff 0.80) y fonética (i <-> y)
+            # 3. Intento de auto-corrección fonética (i <-> y, b <-> v, z <-> s) y difusa con difflib (cutoff 0.88)
             if not row and len(norm_query) >= 4:
                 cursor = conn.execute("SELECT query FROM search_cache WHERE total > 0")
                 all_queries = [r[0] for r in cursor.fetchall()]
-                
-                # 3a. Coincidencia difusa estándar al 80%
-                matches = difflib.get_close_matches(norm_query, all_queries, n=1, cutoff=0.80)
-                
-                # 3b. Coincidencia fonética i/y (ej: avamis <-> avamys)
+                matches = []
+
+                # 3a. Coincidencia fonética directa (ej: avamis <-> avamys)
+                norm_phonetic = norm_query.replace('y', 'i').replace('b', 'v').replace('z', 's')
+                for cand in all_queries:
+                    cand_phonetic = cand.replace('y', 'i').replace('b', 'v').replace('z', 's')
+                    if norm_phonetic == cand_phonetic:
+                        matches = [cand]
+                        break
+
+                # 3b. Coincidencia difusa estricta al 88% (evita confusiones de medicamentos LASA)
                 if not matches:
-                    norm_phonetic = norm_query.replace('y', 'i').replace('b', 'v').replace('z', 's')
-                    for cand in all_queries:
-                        cand_phonetic = cand.replace('y', 'i').replace('b', 'v').replace('z', 's')
-                        if norm_phonetic == cand_phonetic:
-                            matches = [cand]
-                            break
+                    matches = difflib.get_close_matches(norm_query, all_queries, n=1, cutoff=0.88)
+
 
                 if matches:
                     cursor = conn.execute(
@@ -160,36 +162,45 @@ def get_cached_results(query: str) -> Optional[Dict[str, Any]]:
 
 def save_cached_results(query: str, data: Dict[str, Any], custom_expires_at: Optional[float] = None):
     """
-    Guarda o actualiza los resultados con fecha de ingesta y cobertura de farmacias de forma permanente.
+    Guarda o actualiza los resultados en cache.
+    CANDADO DE SEGURIDAD: NUNCA guarda resultados vacíos (total == 0) para no envenenar la base de datos con falsos 'Sin Stock'.
     """
-    norm_query = _normalize_query(query)
-    now = time.time()
-    iso_now = datetime.now().isoformat()
-    expires_at = custom_expires_at if custom_expires_at else (now + 86400 * 365) # Persistente
-    
     raw_results: List[Dict[str, Any]] = data.get("resultados", [])
     clean_results = []
+    iso_now = datetime.now().isoformat()
+    now = time.time()
+    expires_at = custom_expires_at if custom_expires_at else (now + 86400 * 365)
+
     for item in raw_results:
-        clean_item = {
-            "nombre": item.get("nombre", "Medicamento"),
-            "precio": item.get("precio", "Consultar"),
-            "url": item.get("url", ""),
-            "fuente": item.get("fuente", "Desconocida"),
-            "disponible": item.get("disponible", True),
-            "fecha_ingesta": item.get("fecha_ingesta", iso_now)
-        }
-        clean_results.append(clean_item)
+        p_str = item.get("precio", "")
+        # Solo guardar si tiene precio real
+        if p_str and any(c.isdigit() for c in p_str):
+            clean_results.append({
+                "nombre": item.get("nombre", "Medicamento"),
+                "precio": p_str,
+                "url": item.get("url", ""),
+                "fuente": item.get("fuente", "Desconocida"),
+                "disponible": item.get("disponible", True),
+                "fecha_ingesta": item.get("fecha_ingesta", iso_now)
+            })
 
     total = len(clean_results)
-    cobertura = data.get("cobertura", {})
     
+    # CANDADO 1: Si no se encontró ningún producto con precio válido, NO GUARDAR en caché
+    if total == 0:
+        print(f"  [CACHE GUARD] Ignorando guardado para '{query}': 0 productos válidos (evita falsos 'Sin Stock').")
+        return
+
+    norm_query = _normalize_query(query)
+    cobertura = data.get("cobertura", {})
     payload = json.dumps({
         "resultados": clean_results,
         "cobertura": cobertura
     }, ensure_ascii=False)
-    
+
     try:
         with _get_connection() as conn:
+            # CANDADO 2: Solo actualizar si el nuevo resultado tiene IGUAL O MAYOR cantidad de productos que el existente
             conn.execute("""
                 INSERT INTO search_cache (query, data_json, total, fecha_ingesta, created_at, expires_at)
                 VALUES (?, ?, ?, ?, ?, ?)
@@ -199,8 +210,19 @@ def save_cached_results(query: str, data: Dict[str, Any], custom_expires_at: Opt
                     fecha_ingesta=excluded.fecha_ingesta,
                     created_at=excluded.created_at,
                     expires_at=excluded.expires_at
+                WHERE excluded.total >= search_cache.total OR search_cache.total = 0
             """, (norm_query, payload, total, iso_now, now, expires_at))
             conn.commit()
+
+            try:
+                from backend.github_sync import sync_new_medication_to_github
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(sync_new_medication_to_github(norm_query, payload, total, iso_now))
+                except RuntimeError:
+                    pass
+            except ImportError:
+                pass
     except Exception as e:
         print(f"Error guardando cache para '{query}': {e}")
 
@@ -231,3 +253,23 @@ def get_cache_stats() -> Dict[str, Any]:
             }
     except Exception as e:
         return {"error": str(e)}
+
+
+def increment_and_get_visits() -> int:
+    try:
+        with _get_connection() as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS site_stats (
+                    key TEXT PRIMARY KEY,
+                    value INTEGER DEFAULT 0
+                )
+            """)
+            conn.execute("INSERT OR IGNORE INTO site_stats (key, value) VALUES ('visits', 0)")
+            conn.execute("UPDATE site_stats SET value = value + 1 WHERE key = 'visits'")
+            conn.commit()
+            cursor = conn.execute("SELECT value FROM site_stats WHERE key = 'visits'")
+            row = cursor.fetchone()
+            return row[0] if row else 1
+    except Exception as e:
+        print(f"Error registrando visita: {e}")
+        return 1
