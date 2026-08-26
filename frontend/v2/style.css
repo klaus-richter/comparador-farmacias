@@ -697,3 +697,59 @@ body {
   color: #64748b;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
+
+/* Banner de Información Farmacéutica ISP */
+.isp-insights-banner {
+  background: #f0fdf4;
+  border: 1.5px solid #86efac;
+  border-radius: 12px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.isp-banner-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #166534;
+}
+
+.isp-chips-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.isp-chip {
+  background: #ffffff;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.84rem;
+  color: #1e293b;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.isp-chip-title {
+  color: #0f172a;
+}
+
+.isp-chip-text {
+  color: #15803d;
+  font-weight: 600;
+}
+
+.isp-chip-sub {
+  color: #64748b;
+  font-size: 0.78rem;
+}
