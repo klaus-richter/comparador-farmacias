@@ -142,7 +142,10 @@ def cache_status():
 
 @app.post("/api/admin/daily-sync")
 @app.get("/api/admin/daily-sync")
+@app.post("/api/nightly/update")
+@app.get("/api/nightly/update")
 async def trigger_daily_sync():
+
     """Endpoint para activar la actualización nocturna a las 3:00 AM (desde Cloud Scheduler o Cron)."""
     try:
         from backend.scripts.daily_updater import run_daily_update
