@@ -104,15 +104,24 @@ class ISPEngine:
         norm_query = self.normalize(search_query)
 
         q_tokens = [t for t in norm_query.split() if len(t) >= 2]
-        keywords = [t for t in q_tokens if not t.isdigit() and t not in ['comp', 'comprimidos', 'capsulas', 'mg', 'mcg']]
         
+        # CANDADO 1: GATEKEEPER ESTRICTO DE DOSIS MÉDICA
+        # Si el usuario busca 'eutirox 100', el producto NO puede ser de 50mcg.
+        query_nums = [t for t in q_tokens if t.isdigit()]
+        if query_nums:
+            prod_nums = re.findall(r'\b\d+\b', norm_prod)
+            if not any(num in prod_nums for num in query_nums):
+                return False, "MISMATCH_DOSIS"
+
+        # 1. Match directo de palabras clave
+        keywords = [t for t in q_tokens if not t.isdigit() and t not in ['comp', 'comprimidos', 'capsulas', 'mg', 'mcg']]
         if keywords and all(k in norm_prod for k in keywords):
             return True, "MATCH_TEXTO_DIRECTO"
 
+        # 2. Match por Diccionario ISP
         q_info = self.resolve_term(search_query)
         if q_info["encontrado"]:
             norm_p_key = self.normalize(q_info["principio_activo"])
-            
             if norm_p_key in norm_prod:
                 return True, "MATCH_ISP_PRINCIPIO_ACTIVO"
 
@@ -120,12 +129,6 @@ class ISPEngine:
             for b in brands:
                 if b in norm_prod:
                     return True, f"MATCH_ISP_MARCA_EQUIVALENTE ({b})"
-
-        query_nums = [t for t in q_tokens if t.isdigit()]
-        if query_nums:
-            prod_nums = re.findall(r'\b\d+\b', norm_prod)
-            if not any(num in prod_nums for num in query_nums):
-                return False, "MISMATCH_DOSIS"
 
         return False, "NO_MATCH"
 
