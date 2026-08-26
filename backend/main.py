@@ -106,7 +106,8 @@ async def buscar_receta(
     refresh: bool = False
 ):
     start = time.time()
-    productos = [p.strip() for p in q.replace("\n", ",").split(",") if p.strip()][:5]
+    productos = [p.strip() for p in q.replace("\n", ",").split(",") if p.strip()][:10]
+
 
     # Ejecutar la búsqueda de todos los medicamentos en paralelo controlado
     tasks = [buscar_un_producto(p, force_refresh=bool(refresh)) for p in productos]
