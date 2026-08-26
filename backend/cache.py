@@ -114,22 +114,24 @@ def get_cached_results(query: str) -> Optional[Dict[str, Any]]:
                 )
                 row = cursor.fetchone()
 
-            # 3. Intento de auto-corrección difusa con difflib (cutoff 0.80) y fonética (i <-> y)
+            # 3. Intento de auto-corrección fonética (i <-> y, b <-> v, z <-> s) y difusa con difflib (cutoff 0.88)
             if not row and len(norm_query) >= 4:
                 cursor = conn.execute("SELECT query FROM search_cache WHERE total > 0")
                 all_queries = [r[0] for r in cursor.fetchall()]
-                
-                # 3a. Coincidencia difusa estándar al 80%
-                matches = difflib.get_close_matches(norm_query, all_queries, n=1, cutoff=0.80)
-                
-                # 3b. Coincidencia fonética i/y (ej: avamis <-> avamys)
+                matches = []
+
+                # 3a. Coincidencia fonética directa (ej: avamis <-> avamys)
+                norm_phonetic = norm_query.replace('y', 'i').replace('b', 'v').replace('z', 's')
+                for cand in all_queries:
+                    cand_phonetic = cand.replace('y', 'i').replace('b', 'v').replace('z', 's')
+                    if norm_phonetic == cand_phonetic:
+                        matches = [cand]
+                        break
+
+                # 3b. Coincidencia difusa estricta al 88% (evita confusiones de medicamentos LASA)
                 if not matches:
-                    norm_phonetic = norm_query.replace('y', 'i').replace('b', 'v').replace('z', 's')
-                    for cand in all_queries:
-                        cand_phonetic = cand.replace('y', 'i').replace('b', 'v').replace('z', 's')
-                        if norm_phonetic == cand_phonetic:
-                            matches = [cand]
-                            break
+                    matches = difflib.get_close_matches(norm_query, all_queries, n=1, cutoff=0.88)
+
 
                 if matches:
                     cursor = conn.execute(
@@ -244,3 +246,23 @@ def get_cache_stats() -> Dict[str, Any]:
             }
     except Exception as e:
         return {"error": str(e)}
+
+
+def increment_and_get_visits() -> int:
+    try:
+        with _get_connection() as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS site_stats (
+                    key TEXT PRIMARY KEY,
+                    value INTEGER DEFAULT 0
+                )
+            """)
+            conn.execute("INSERT OR IGNORE INTO site_stats (key, value) VALUES ('visits', 0)")
+            conn.execute("UPDATE site_stats SET value = value + 1 WHERE key = 'visits'")
+            conn.commit()
+            cursor = conn.execute("SELECT value FROM site_stats WHERE key = 'visits'")
+            row = cursor.fetchone()
+            return row[0] if row else 1
+    except Exception as e:
+        print(f"Error registrando visita: {e}")
+        return 1
