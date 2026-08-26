@@ -674,3 +674,19 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Footer discreto casi camuflado con el fondo */
+.footer-discreet {
+  text-align: center;
+  padding: 36px 0 12px;
+  font-size: 0.68rem;
+  color: #cbd5e1;
+  user-select: none;
+  letter-spacing: 0.05em;
+  transition: color 0.25s ease;
+}
+
+.footer-discreet:hover {
+  color: #94a3b8;
+}
