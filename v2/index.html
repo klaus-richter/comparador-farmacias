@@ -10,29 +10,33 @@
   <main class="app">
     <!-- Header -->
     <header class="hero">
-      <div class="logo-badge">💊 COMPARADOR DE FARMACIAS CHILE</div>
       <h1>🏥 Compara Precios de tu Receta</h1>
       <p class="hero-instructions">Ingresa los medicamentos separados por coma</p>
     </header>
 
+
+
     <!-- Buscador -->
-    <p class="search-label">Máximo 5 medicamentos por búsqueda</p>
+    <p class="search-label">Prefiera el principio activo para bioequivalentes y la marca para uno específico</p>
     <form id="search-form" class="search-box">
       <div class="input-wrap">
         <span class="search-icon">🔍</span>
         <input 
           type="text" 
           id="search-input" 
-          placeholder="Ej: omeprazol, amoxicilina, paracetamol..."
+          placeholder="Ej: omeprazol, amoxicilina, paracetamol, eutirox 100mcg"
           autocomplete="off"
           autofocus
           required 
         />
       </div>
+
       <button type="submit" id="search-btn">
         <span class="btn-text">Buscar Precios</span>
       </button>
     </form>
+
+
 
     <!-- Estado / Espera animada -->
     <div id="status-bar" class="status-bar" style="display: none;">
