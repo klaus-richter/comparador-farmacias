@@ -204,15 +204,30 @@ function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
 
   if (items.length === 0) return null;
 
-  // 2. Filtrar por match inteligente (marca, dosis y fonética)
-  const matches = items.filter(item => matchProductInteligente(item.nombre, searchProd));
-
-  if (matches.length > 0) {
-    matches.sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
-    return matches[0];
+  // TIER 1: Coincidencia directa con la palabra clave o marca buscada
+  const exactMatches = items.filter(item => matchProductInteligente(item.nombre, searchProd));
+  if (exactMatches.length > 0) {
+    exactMatches.sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
+    return exactMatches[0];
   }
 
-  return null;
+  // TIER 2: Fallback Inteligente cuando se busca por Principio Activo (ej: rupatadina en Ahumada que solo titula como Rupax/Rexanel)
+  const normQuery = normalizeSearchText(searchProd);
+  const queryNums = normQuery.split(/\s+/).filter(tok => /^\d+$/.test(tok));
+  
+  let fallbackCandidates = items;
+  if (queryNums.length > 0) {
+    const doseMatches = items.filter(item => {
+      const prodNums = normalizeSearchText(item.nombre).match(/\b\d+\b/g) || [];
+      return queryNums.some(num => prodNums.includes(num));
+    });
+    if (doseMatches.length > 0) {
+      fallbackCandidates = doseMatches;
+    }
+  }
+
+  fallbackCandidates.sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
+  return fallbackCandidates[0];
 }
 
 
