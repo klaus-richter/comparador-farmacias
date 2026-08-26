@@ -54,7 +54,8 @@ async def _scrape_page_ahumada(page, producto: str) -> List[Dict[str, Any]]:
     try:
         await page.wait_for_selector('.product-tile, .pdp-link, a[href*=".html"]', timeout=6000)
     except:
-        await page.wait_for_timeout(3000)
+        # Inmediato
+        pass
     items = await page.evaluate(r"""() => {
         const results = [];
         const tiles = document.querySelectorAll('.product-tile');
@@ -106,7 +107,8 @@ async def _scrape_page_salcobrand(page, producto: str) -> List[Dict[str, Any]]:
     try:
         await page.wait_for_selector('a[href*="/products/"], .display-offer-price, .product-name', timeout=7000)
     except:
-        await page.wait_for_timeout(3500)
+        # Inmediato
+        pass
     items = await page.evaluate(r"""() => {
         const results = [], seen = new Set();
         const productLinks = document.querySelectorAll('a[href*="/products/"]');
@@ -125,23 +127,34 @@ async def _scrape_page_salcobrand(page, producto: str) -> List[Dict[str, Any]]:
             const prices = txt.match(/\$\s*[\d\.]+/g);
             if (!prices || prices.length === 0) continue;
 
-            const nameEl = card ? card.querySelector('h2, h3, .product-name, [class*="Name"], [class*="name"]') : null;
-            const lines = txt.split('\n').map(l => l.trim()).filter(l => l && !l.includes('$') && l.length > 3 && l.length < 90 && !/precio|receta|descuento|formato/i.test(l));
-            let name = nameEl ? nameEl.innerText.trim() : (lines.length > 0 ? lines[0] : '');
+            // Extraer nombre descriptivo completo (incluyendo dosis y formato)
+            let name = "";
+            const slugMatch = cleanHrefKey.match(/\/products\/([a-zA-Z0-9\-]+)/);
+            if (slugMatch) {
+                name = slugMatch[1]
+                    .replace(/-r-/gi, ' ')
+                    .replace(/-b-/gi, ' ')
+                    .replace(/-/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+                name = name.charAt(0).toUpperCase() + name.slice(1);
+            }
 
-            if (!name) {
-                const slugMatch = href.match(/\/products\/([a-zA-Z0-9\-]+)/);
-                if (slugMatch) {
-                    name = slugMatch[1].replace(/-/g, ' ').toUpperCase();
-                }
+            if (!name || name.length < 5) {
+                const lines = txt.split('\n').map(l => l.trim()).filter(l => l && !l.includes('$') && l.length > 5 && !/precio|receta|descuento|formato|retiro|despacho|convenio|fonasa|a[ñn]adir/i.test(l));
+                name = lines.length > 0 ? lines[0] : (card ? card.querySelector('h2, h3')?.innerText.trim() : '');
             }
 
             if (name) {
                 seen.add(cleanHrefKey);
-                const cleanPrice = prices[0].replace(/\s+/g, '');
+                const cleanPrices = prices.map(p => ({ raw: p.replace(/\s+/g, ''), num: parseInt(p.replace(/[^\d]/g, ''), 10) })).filter(p => !isNaN(p.num) && p.num > 100);
+                cleanPrices.sort((a, b) => a.num - b.num);
+                const bestPrice = cleanPrices.length > 0 ? cleanPrices[0].raw : prices[0].replace(/\s+/g, '');
+
                 const fullHref = href.startsWith('http') ? href : `https://salcobrand.cl${href.startsWith('/') ? '' : '/'}${href}`;
-                results.push({ nombre: name, precio: cleanPrice, url: fullHref, fuente: "Salcobrand", disponible: true });
+                results.push({ nombre: name, precio: bestPrice, url: fullHref, fuente: "Salcobrand", disponible: true });
             }
+
         }
         return results.slice(0, 6);
     }""")
@@ -226,7 +239,8 @@ async def _scrape_page_cruzverde(page, producto: str) -> List[Dict[str, Any]]:
         await page.wait_for_selector('a[href*=".html"]', timeout=8000)
     except Exception:
         pass
-    await page.wait_for_timeout(2000)
+    # Inmediato
+        pass
 
     CV_EVAL = r"""() => {
         const results = [], seen = new Set();
