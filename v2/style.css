@@ -67,6 +67,8 @@ body {
 
 /* Label y Tips arriba del buscador */
 .search-tips {
+  width: fit-content;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
   gap: 3px;
