@@ -1,10 +1,10 @@
 {
-  "id": "/comparador-farmacias/v2/",
+  "id": "/",
   "name": "QueFarmacia.cl — Comparador de Precios",
   "short_name": "QueFarmacia",
   "description": "Compara precios de medicamentos y recetas en Cruz Verde, Salcobrand, Ahumada, Dr. Simi y Ecofarmacias",
-  "start_url": "./index.html",
-  "scope": "./",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "display_override": [
     "fullscreen",
@@ -22,13 +22,13 @@
   ],
   "icons": [
     {
-      "src": "icon-192.png",
+      "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "icon-512.png",
+      "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
@@ -36,14 +36,14 @@
   ],
   "screenshots": [
     {
-      "src": "screenshot-1.png",
+      "src": "/screenshot-1.png",
       "sizes": "1080x1920",
       "type": "image/png",
       "form_factor": "narrow",
       "label": "Buscador de Medicamentos y Recetas"
     },
     {
-      "src": "screenshot-2.png",
+      "src": "/screenshot-2.png",
       "sizes": "1080x1920",
       "type": "image/png",
       "form_factor": "narrow",
