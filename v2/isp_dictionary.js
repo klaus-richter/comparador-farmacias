@@ -2400,7 +2400,6 @@ const ISPEngineClient = {
       for (let i = 0; i <= words.length - len; i++) {
         const cand = words.slice(i, i + len).join(" ");
         
-        // 1. Coincidencia directa de principio activo
         for (const [k, info] of Object.entries(activos)) {
           if (this.normalize(k) === cand) {
             return {
@@ -2415,7 +2414,6 @@ const ISPEngineClient = {
           }
         }
 
-        // 2. Coincidencia de marca
         for (const [m, pKey] of Object.entries(marcas)) {
           if (this.normalize(m) === cand) {
             const info = activos[pKey] || {};
@@ -2442,9 +2440,19 @@ const ISPEngineClient = {
     const normQuery = this.normalize(searchQuery);
 
     const qTokens = normQuery.split(/\s+/).filter(tok => tok.length >= 2);
-    const keywords = qTokens.filter(tok => !/^\d+$/.test(tok) && !['comp', 'comprimidos', 'capsulas', 'mg', 'mcg', 'x'].includes(tok));
     
+    // CANDADO 1: GATEKEEPER ESTRICTO DE DOSIS MÉDICA
+    // Si el usuario busca 'eutirox 100', el producto NO puede ser de 50mcg.
+    const queryNums = qTokens.filter(tok => /^\d+$/.test(tok));
+    if (queryNums.length > 0) {
+      const prodNums = normProd.match(/\b\d+\b/g) || [];
+      if (!queryNums.some(num => prodNums.includes(num))) {
+        return false;
+      }
+    }
+
     // 1. Match directo de palabras clave
+    const keywords = qTokens.filter(tok => !/^\d+$/.test(tok) && !['comp', 'comprimidos', 'capsulas', 'mg', 'mcg', 'x'].includes(tok));
     if (keywords.length > 0 && keywords.every(k => normProd.includes(k))) {
       return true;
     }
@@ -2459,15 +2467,6 @@ const ISPEngineClient = {
       const brands = pInfo.marcas || [];
       for (const b of brands) {
         if (normProd.includes(this.normalize(b))) return true;
-      }
-    }
-
-    // 3. Validar dosis si fue especificada
-    const queryNums = qTokens.filter(tok => /^\d+$/.test(tok));
-    if (queryNums.length > 0) {
-      const prodNums = normProd.match(/\b\d+\b/g) || [];
-      if (!queryNums.some(num => prodNums.includes(num))) {
-        return false;
       }
     }
 
