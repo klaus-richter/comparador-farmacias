@@ -151,22 +151,49 @@ function matchPharmacy(itemFuente, targetPharmacy) {
   return false;
 }
 
+// Función con cascadeo inteligente: respeta marcas exactas y evita sustitutos no solicitados
+function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
+  const qLower = (searchProd || "").toLowerCase().trim();
+  const qTokens = qLower.split(/\s+/).filter(t => t.length > 2);
+
+  // 1. Filtrar productos de esta farmacia con precio válido
+  const items = (allResults || [])
+    .filter(item => matchPharmacy(item.fuente, targetPharmacy))
+    .filter(item => parsePriceToNumber(item.precio) !== Infinity);
+
+  if (items.length === 0) return null;
+
+  // 2. Nivel 1: Match Fuerte por término buscado
+  const strongMatches = items.filter(item => {
+    const nameLower = (item.nombre || "").toLowerCase();
+    if (nameLower.includes(qLower)) return true;
+    if (qTokens.length > 0 && qTokens.every(token => nameLower.includes(token))) return true;
+    return false;
+  });
+
+  if (strongMatches.length > 0) {
+    strongMatches.sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
+    return strongMatches[0];
+  }
+
+  // 3. Nivel 2: Si no hubo match fuerte de marca (ej: busco 'eutirox' o 'nariklin' y no existe),
+  // se retorna null para no colar sustitutos ajenos o caros.
+  return null;
+}
+
 function renderRecipeComparison(receta, queryList) {
   pharmacyGrid.innerHTML = "";
   comparisonSummary.innerHTML = "";
 
   const pharmacies = ALL_PHARMACIES;
 
-  // Pre-calcular la farmacia más barata POR MEDICAMENTO
+  // Pre-calcular la farmacia más barata POR MEDICAMENTO con cascadeo
   const cheapestPerMed = {};
   receta.forEach(r => {
     let minPrice = Infinity;
     let minPharmacy = null;
     pharmacies.forEach(fuente => {
-      const items = (r.resultados || [])
-        .filter(item => matchPharmacy(item.fuente, fuente))
-        .sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
-      const best = items[0];
+      const best = getBestItemForPharmacy(r.resultados, fuente, r.producto);
       const p = best ? parsePriceToNumber(best.precio) : Infinity;
       if (p < minPrice) { minPrice = p; minPharmacy = fuente; }
     });
@@ -182,11 +209,7 @@ function renderRecipeComparison(receta, queryList) {
 
     receta.forEach(r => {
       const prodName = r.producto;
-      const matchingItems = (r.resultados || [])
-        .filter(item => matchPharmacy(item.fuente, fuente))
-        .sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
-
-      const bestItem = matchingItems[0] || null;
+      const bestItem = getBestItemForPharmacy(r.resultados, fuente, prodName);
       const priceNum = bestItem ? parsePriceToNumber(bestItem.precio) : Infinity;
 
       if (priceNum !== Infinity) { 
@@ -208,6 +231,7 @@ function renderRecipeComparison(receta, queryList) {
 
     const isComplete = availableCount === receta.length;
     return { 
+
       fuente, 
       isComplete, 
       totalNum: isComplete ? sum : Infinity, 
