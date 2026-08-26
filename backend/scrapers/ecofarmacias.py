@@ -20,7 +20,7 @@ async def buscar_ecofarmacias(producto: str, max_resultados: int = 6) -> list[di
             "q": producto,
             "limit": max_resultados * 2,
             "offset": 0,
-            "attributesToRetrieve": ["id", "name", "url", "price", "sale_price", "regular_price", "in_stock"]
+            "attributesToRetrieve": ["id", "name", "url", "price", "sale_price", "regular_price", "in_stock", "stock_qty", "stock_order"]
         }).encode("utf-8")
 
         req = urllib.request.Request(API_URL, data=payload, headers=HEADERS, method="POST")
@@ -29,9 +29,13 @@ async def buscar_ecofarmacias(producto: str, max_resultados: int = 6) -> list[di
             hits = data.get("hits", [])
 
             for hit in hits:
-                # Descartar productos agotados o sin stock / sin existencias
-                if hit.get("in_stock") is False:
+                # Descartar productos agotados o sin existencias
+                in_stock = hit.get("in_stock")
+                stock_order = hit.get("stock_order")
+                stock_qty = hit.get("stock_qty")
+                if in_stock in (False, 0, "false") or stock_order == 0 or (stock_qty is not None and stock_qty <= 0):
                     continue
+
 
                 name = hit.get("name", "").strip()
                 # Limpiar tags <mark> si vienen
