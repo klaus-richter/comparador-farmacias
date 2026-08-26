@@ -485,25 +485,9 @@ searchForm.addEventListener("submit", async (e) => {
 
 
 // Contador discreto de visitas
-async function initVisitorCounter() {
-  const el = document.getElementById("visit-counter");
-  if (!el) return;
-  try {
-    const res = await fetch(`${API}/api/visitas`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data.visitas !== undefined) {
-        el.textContent = `${Number(data.visitas).toLocaleString("es-CL")} visitas`;
-      }
-    } else {
-      el.textContent = "Comparador Activo";
-    }
-  } catch (e) {
-    el.textContent = "Comparador Activo";
-  }
-}
+
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", initVisitorCounter);
 } else {
-  initVisitorCounter();
+  
 }
