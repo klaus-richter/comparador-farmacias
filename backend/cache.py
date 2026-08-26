@@ -201,8 +201,21 @@ def save_cached_results(query: str, data: Dict[str, Any], custom_expires_at: Opt
                     expires_at=excluded.expires_at
             """, (norm_query, payload, total, iso_now, now, expires_at))
             conn.commit()
+            
+            # Sincronización en caliente y en segundo plano a GitHub (si hay token disponible)
+            if total > 0:
+                try:
+                    from backend.github_sync import sync_new_medication_to_github
+                    try:
+                        loop = asyncio.get_running_loop()
+                        loop.create_task(sync_new_medication_to_github(norm_query, payload, total, iso_now))
+                    except RuntimeError:
+                        pass
+                except ImportError:
+                    pass
     except Exception as e:
         print(f"Error guardando cache para '{query}': {e}")
+
 
 def get_all_known_queries() -> List[str]:
     """Retorna la lista de todos los medicamentos alguna vez buscados o registrados."""
