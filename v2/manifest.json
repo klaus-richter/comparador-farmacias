@@ -1,16 +1,25 @@
 {
   "id": "/comparador-farmacias/v2/",
-  "name": "Comparador de Farmacias Chile",
-  "short_name": "Comparador",
+  "name": "Receta.cl — Comparador de Farmacias",
+  "short_name": "Receta",
   "description": "Compara precios de recetas médicas en Cruz Verde, Salcobrand, Ahumada, Dr. Simi y Ecofarmacias",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "display_override": ["fullscreen", "standalone", "minimal-ui"],
+  "display_override": [
+    "fullscreen",
+    "standalone",
+    "minimal-ui"
+  ],
   "orientation": "portrait-primary",
   "background_color": "#f8fafc",
   "theme_color": "#f8fafc",
-  "categories": ["medical", "health", "shopping", "lifestyle"],
+  "categories": [
+    "medical",
+    "health",
+    "shopping",
+    "lifestyle"
+  ],
   "icons": [
     {
       "src": "icon-192.png",
@@ -38,7 +47,7 @@
       "sizes": "1080x1920",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Comparación de Precios de las 5 Farmacias"
+      "label": "Comparación de Precios en Farmacias"
     }
   ]
 }
