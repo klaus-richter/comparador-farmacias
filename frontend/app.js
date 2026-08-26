@@ -347,7 +347,51 @@ function renderRecipeComparison(receta, queryList) {
 
 
 
-  comparisonSummary.style.display = "none";
+    // Generar badges de información médica oficial ISP Chile
+  const ispInsights = [];
+  receta.forEach(r => {
+    if (typeof window !== "undefined" && window.ISPEngine) {
+      const info = window.ISPEngine.resolveTerm(r.producto);
+      if (info && info.encontrado) {
+        if (info.tipo === "MARCA_COMERCIAL") {
+          const sisterBrands = (info.marcas_hermanas || []).slice(0, 3).map(b => b.charAt(0).toUpperCase() + b.slice(1)).join(", ");
+          ispInsights.push(`
+            <div class="isp-chip">
+              <span class="isp-chip-title">🏷️ <strong>${escapeHtml(r.producto.toUpperCase())}</strong>:</span>
+              <span class="isp-chip-text">Principio Activo: ${escapeHtml(info.nombre_oficial)}</span>
+              ${sisterBrands ? `<span class="isp-chip-sub">(Otras marcas: ${escapeHtml(sisterBrands)})</span>` : ""}
+            </div>
+          `);
+        } else if (info.tipo === "PRINCIPIO_ACTIVO") {
+          const topBrands = (info.marcas || []).slice(0, 4).map(b => b.charAt(0).toUpperCase() + b.slice(1)).join(", ");
+          ispInsights.push(`
+            <div class="isp-chip">
+              <span class="isp-chip-title">🧪 <strong>${escapeHtml(r.producto.toUpperCase())}</strong>:</span>
+              <span class="isp-chip-text">${escapeHtml(info.clase_terapeutica || "Principio Activo")}</span>
+              ${topBrands ? `<span class="isp-chip-sub">(Marcas en Chile: ${escapeHtml(topBrands)})</span>` : ""}
+            </div>
+          `);
+        }
+      }
+    }
+  });
+
+  if (ispInsights.length > 0) {
+    comparisonSummary.innerHTML = `
+      <div class="isp-insights-banner">
+        <div class="isp-banner-header">
+          <span>🇨🇱</span>
+          <span>Guía Farmacéutica ISP (Bioequivalencias y Marcas)</span>
+        </div>
+        <div class="isp-chips-container">
+          ${ispInsights.join("")}
+        </div>
+      </div>
+    `;
+    comparisonSummary.style.display = "block";
+  } else {
+    comparisonSummary.style.display = "none";
+  }
 
   totals.forEach((pharmacy, idx) => {
     const isWinner = idx === 0 && pharmacy.availableCount > 0;
