@@ -389,13 +389,14 @@ searchForm.addEventListener("submit", async (e) => {
     return;
   }
 
-  // Limitar a 5 medicamentos máximo
-  if (queryItems.length > 5) {
-    queryItems = queryItems.slice(0, 5);
+  // Limitar a 10 medicamentos máximo
+  if (queryItems.length > 10) {
+    queryItems = queryItems.slice(0, 10);
     searchInput.value = queryItems.join(", ");
-    showErrorStatus("⚠️ Máximo 5 medicamentos por búsqueda. Se tomaron los primeros 5.");
+    showErrorStatus("⚠️ Máximo 10 medicamentos por búsqueda. Se tomaron los primeros 10.");
     setTimeout(() => { statusBar.style.display = "none"; }, 3500);
   }
+
 
   const isMultiple = queryItems.length > 1;
 
