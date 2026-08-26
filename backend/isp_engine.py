@@ -6,6 +6,33 @@ from typing import Optional, Dict, Any, List, Tuple
 
 DICT_PATH = os.path.join(os.path.dirname(__file__), "data", "isp_dictionary.json")
 
+FORM_CATEGORIES = {
+    "nasal": {
+        "keywords": ["nasal", "spray", "inhalador", "nebulizador", "puff", "dosis", "aerosol"],
+        "conflicts": ["crema", "gel", "pomada", "unguento", "dermico", "dermica", "comprimidos", "capsulas", "jarabe", "ovulos"]
+    },
+    "crema": {
+        "keywords": ["crema", "unguento", "pomada", "dermico", "dermica", "gel", "emulgel", "topico", "topica"],
+        "conflicts": ["nasal", "spray", "jarabe", "comprimidos", "capsulas", "gotas", "inhalador", "ovulos"]
+    },
+    "gel": {
+        "keywords": ["gel", "emulgel", "topico", "topica", "crema", "unguento"],
+        "conflicts": ["nasal", "jarabe", "comprimidos", "capsulas", "gotas", "inhalador"]
+    },
+    "jarabe": {
+        "keywords": ["jarabe", "suspension", "solucion oral", "elixir"],
+        "conflicts": ["comprimidos", "capsulas", "crema", "gel", "pomada", "unguento", "spray", "nasal", "ovulos"]
+    },
+    "gotas": {
+        "keywords": ["gotas", "solucion oral", "solucion oftalmica", "oftalmico", "otico", "colirio"],
+        "conflicts": ["comprimidos", "capsulas", "crema", "pomada", "unguento"]
+    },
+    "comprimidos": {
+        "keywords": ["comprimidos", "capsulas", "tabletas", "grajeas", "comp", "sobres", "caps", "recubiertos"],
+        "conflicts": ["jarabe", "crema", "gel", "pomada", "unguento", "spray", "nasal", "gotas", "solucion"]
+    }
+}
+
 class ISPEngine:
     def __init__(self, dict_path: Optional[str] = None):
         path = dict_path or DICT_PATH
@@ -88,17 +115,6 @@ class ISPEngine:
             "marcas_registradas": []
         }
 
-    def are_equivalent(self, term_a: str, term_b: str) -> bool:
-        res_a = self.resolve_term(term_a)
-        res_b = self.resolve_term(term_b)
-
-        if res_a["encontrado"] and res_b["encontrado"]:
-            return res_a["principio_activo"] == res_b["principio_activo"]
-
-        norm_a = self.normalize(term_a)
-        norm_b = self.normalize(term_b)
-        return norm_a in norm_b or norm_b in norm_a
-
     def match_product_against_query(self, product_name: str, search_query: str) -> Tuple[bool, str]:
         norm_prod = self.normalize(product_name)
         norm_query = self.normalize(search_query)
@@ -106,15 +122,25 @@ class ISPEngine:
         q_tokens = [t for t in norm_query.split() if len(t) >= 2]
         
         # CANDADO 1: GATEKEEPER ESTRICTO DE DOSIS MÉDICA
-        # Si el usuario busca 'eutirox 100', el producto NO puede ser de 50mcg.
         query_nums = [t for t in q_tokens if t.isdigit()]
         if query_nums:
             prod_nums = re.findall(r'\b\d+\b', norm_prod)
             if not any(num in prod_nums for num in query_nums):
                 return False, "MISMATCH_DOSIS"
 
+        # CANDADO 2: GATEKEEPER ESTRICTO DE FORMA FARMACÉUTICA (Nasal vs Crema vs Jarabe vs Comprimidos)
+        for form_key, form_info in FORM_CATEGORIES.items():
+            if form_key in norm_query or any(kw in norm_query.split() for kw in form_info["keywords"]):
+                # Si el producto tiene un término en conflicto explícito (ej: 'crema' cuando se pidió 'nasal'), RECHAZAR
+                prod_tokens = norm_prod.split()
+                if any(cf in prod_tokens or cf in norm_prod for cf in form_info["conflicts"]):
+                    return False, f"MISMATCH_FORMA (Conflicto con forma '{form_key}')"
+                # Si el producto no contiene ningún indicador de la forma solicitada, RECHAZAR
+                if not any(kw in norm_prod for kw in form_info["keywords"]):
+                    return False, f"MISMATCH_FORMA (No contiene forma '{form_key}')"
+
         # 1. Match directo de palabras clave
-        keywords = [t for t in q_tokens if not t.isdigit() and t not in ['comp', 'comprimidos', 'capsulas', 'mg', 'mcg']]
+        keywords = [t for t in q_tokens if not t.isdigit() and t not in ['comp', 'comprimidos', 'capsulas', 'mg', 'mcg', 'nasal', 'crema', 'jarabe', 'gel']]
         if keywords and all(k in norm_prod for k in keywords):
             return True, "MATCH_TEXTO_DIRECTO"
 
