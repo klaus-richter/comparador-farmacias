@@ -172,3 +172,17 @@ FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__fi
 if os.path.exists(FRONTEND_DIR):
     app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
 
+
+
+@app.get("/api/visitas")
+def get_visits():
+    from backend.cache import increment_and_get_visits
+    count = increment_and_get_visits()
+    return {"visitas": count}
+
+
+@app.get("/api/isp/resolve")
+def resolve_isp(q: str = Query(..., description="Nombre del medicamento o principio activo")):
+    """Consulta semántica oficial al registro farmacéutico del ISP Chile."""
+    from backend.isp_engine import isp_engine
+    return isp_engine.resolve_term(q)
