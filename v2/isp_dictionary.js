@@ -5,7 +5,7 @@ const ISP_DATA = {
   "pais": "Chile",
   "fuente_oficial": "Instituto de Salud Pública (ISP)",
   "total_principios_activos": 83,
-  "total_marcas_indexadas": 514,
+  "total_marcas_indexadas": 539,
   "principios_activos": {
     "rupatadina": {
       "nombre_oficial": "Rupatadina",
@@ -15,7 +15,10 @@ const ISP_DATA = {
         "rexanel",
         "reax",
         "rupafin",
-        "ruloxan"
+        "ruloxan",
+        "rupatadina",
+        "rupaler",
+        "rinolast"
       ],
       "dosis_comunes": [
         "10 mg",
@@ -41,7 +44,10 @@ const ISP_DATA = {
         "despeval",
         "desloratadina",
         "desalex",
-        "rinofil"
+        "rinofil",
+        "desloran",
+        "alercet d",
+        "neodes"
       ],
       "dosis_comunes": [
         "5 mg",
@@ -176,7 +182,10 @@ const ISP_DATA = {
         "hedera helix",
         "prospan",
         "hiedrix",
-        "hederavit"
+        "hederavit",
+        "toscalman",
+        "hedera",
+        "tussikind"
       ],
       "dosis_comunes": [
         "35 mg/5ml",
@@ -316,7 +325,12 @@ const ISP_DATA = {
         "fluticasona",
         "plenair",
         "flixonex",
-        "fluticort"
+        "fluticort",
+        "cutivate",
+        "flutinex",
+        "flutivate",
+        "flusal",
+        "brexotide"
       ],
       "dosis_comunes": [
         "27.5 mcg",
@@ -339,7 +353,16 @@ const ISP_DATA = {
         "mometasona",
         "unimom",
         "rinoval",
-        "elocon"
+        "elocon",
+        "pluster",
+        "synaller",
+        "suavicort",
+        "proxona",
+        "monez",
+        "dimuxon",
+        "momefast",
+        "alermom",
+        "dermosona"
       ],
       "dosis_comunes": [
         "50 mcg",
@@ -1250,7 +1273,10 @@ const ISP_DATA = {
         "synthroid",
         "tirofil",
         "letrox",
-        "levotiroxina sodica"
+        "levotiroxina sodica",
+        "novothyral",
+        "tiroxin",
+        "t4"
       ],
       "dosis_comunes": [
         "25 mcg",
@@ -1868,6 +1894,8 @@ const ISP_DATA = {
     "reax": "rupatadina",
     "rupafin": "rupatadina",
     "ruloxan": "rupatadina",
+    "rupaler": "rupatadina",
+    "rinolast": "rupatadina",
     "desloratadina": "desloratadina",
     "despex": "desloratadina",
     "d-histaplus": "desloratadina",
@@ -1878,6 +1906,9 @@ const ISP_DATA = {
     "despeval": "desloratadina",
     "desalex": "desloratadina",
     "rinofil": "desloratadina",
+    "desloran": "desloratadina",
+    "alercet d": "desloratadina",
+    "neodes": "desloratadina",
     "levocetirizina": "levocetirizina",
     "degraler": "levocetirizina",
     "xuzal": "levocetirizina",
@@ -1915,6 +1946,9 @@ const ISP_DATA = {
     "prospan": "hedera helix",
     "hiedrix": "hedera helix",
     "hederavit": "hedera helix",
+    "toscalman": "hedera helix",
+    "hedera": "hedera helix",
+    "tussikind": "hedera helix",
     "carbocisteina": "carbocisteina",
     "broncotusilan": "carbocisteina",
     "mucolitico": "carbocisteina",
@@ -1951,11 +1985,25 @@ const ISP_DATA = {
     "plenair": "fluticasona",
     "flixonex": "fluticasona",
     "fluticort": "fluticasona",
+    "cutivate": "fluticasona",
+    "flutinex": "fluticasona",
+    "flutivate": "fluticasona",
+    "flusal": "fluticasona",
+    "brexotide": "fluticasona",
     "mometasona": "mometasona",
     "nasonex": "mometasona",
     "unimom": "mometasona",
     "rinoval": "mometasona",
     "elocon": "mometasona",
+    "pluster": "mometasona",
+    "synaller": "mometasona",
+    "suavicort": "mometasona",
+    "proxona": "mometasona",
+    "monez": "mometasona",
+    "dimuxon": "mometasona",
+    "momefast": "mometasona",
+    "alermom": "mometasona",
+    "dermosona": "mometasona",
     "pseudoefedrina + clorfenamina": "pseudoefedrina + clorfenamina",
     "nastizol": "pseudoefedrina + clorfenamina",
     "decongel": "pseudoefedrina + clorfenamina",
@@ -2215,6 +2263,9 @@ const ISP_DATA = {
     "tirofil": "levotiroxina",
     "letrox": "levotiroxina",
     "levotiroxina sodica": "levotiroxina",
+    "novothyral": "levotiroxina",
+    "tiroxin": "levotiroxina",
+    "t4": "levotiroxina",
     "metformina": "metformina",
     "glaupax": "metformina",
     "glucophage": "metformina",
