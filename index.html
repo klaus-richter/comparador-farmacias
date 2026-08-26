@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Comparador de Remedios | Precios por Farmacia</title>
+  <title>Comparador de Farmacias Chile - Vista Matriz</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -15,9 +15,6 @@
       <p class="hero-instructions">Ingresa los medicamentos separados por coma</p>
     </header>
 
-
-
-
     <!-- Buscador -->
     <div class="search-tips">
       <span class="tips-title">💡 <strong>Tips:</strong></span>
@@ -25,8 +22,6 @@
       <span class="tip-line">• La <strong>marca</strong> si buscas un medicamento específico 🧴</span>
     </div>
     <form id="search-form" class="search-box">
-
-
       <div class="input-wrap">
         <span class="search-icon">🔍</span>
         <input 
@@ -38,34 +33,27 @@
           required 
         />
       </div>
-
-      <button type="submit" id="search-btn">
-        <span class="btn-text">Buscar Precios</span>
-      </button>
+      <button type="submit" id="search-btn" class="btn-primary">Buscar Precios</button>
     </form>
 
-
-
-    <!-- Estado / Espera animada -->
-    <div id="status-bar" class="status-bar" style="display: none;">
-      <div class="spinner" id="spinner" style="display: none;"></div>
-      <div class="status-content">
-        <div id="status-title" class="status-title"></div>
-        <div class="progress-track">
-          <div class="progress-fill" id="progress-fill"></div>
+    <!-- Status / Animación de Carga -->
+    <div id="status-bar" class="status-bar">
+      <div class="spinner" id="spinner"></div>
+      <div class="status-text-wrap">
+        <div class="status-header-row">
+          <span id="status-title" class="status-title">Buscando...</span>
+          <span id="status-step" class="status-step"></span>
         </div>
-        <div id="status-step" class="status-step"></div>
+        <div class="progress-bar-container">
+          <div id="progress-fill" class="progress-bar-fill"></div>
+        </div>
       </div>
     </div>
 
-    <!-- Contenedor Comparador de Columnas -->
-    <section id="results-wrapper" class="results-wrapper" style="display: none;">
-      <div class="comparison-summary" id="comparison-summary">
-        <!-- Resumen del ganador -->
-      </div>
-      <div class="pharmacy-grid" id="pharmacy-grid">
-        <!-- Columnas de farmacias generadas dinámicamente ordenadas de más barata a más cara -->
-      </div>
+    <!-- Resultados -->
+    <section id="results-wrapper" class="results-wrapper">
+      <div id="comparison-summary" class="comparison-summary"></div>
+      <div id="pharmacy-grid"></div>
     </section>
   </main>
 
