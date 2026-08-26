@@ -65,13 +65,38 @@ body {
   margin-top: 4px;
 }
 
-/* Label arriba del buscador */
+/* Label y Tips arriba del buscador */
+.search-tips {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: #f8fafc;
+  border-left: 3.5px solid #2563eb;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 0.93rem;
+  color: #334155;
+  margin-bottom: -10px;
+}
+
+.tips-title {
+  font-size: 0.95rem;
+  color: #1e293b;
+  margin-bottom: 1px;
+}
+
+.tip-line {
+  color: #475569;
+  font-weight: 500;
+}
+
 .search-label {
   font-size: 1rem;
   font-weight: 700;
   color: #334155;
   margin-bottom: -10px;
 }
+
 
 /* Search Box */
 .search-box {
