@@ -138,6 +138,22 @@ def cache_status():
         "stats": get_cache_stats()
     }
 
+
+@app.post("/api/admin/daily-sync")
+@app.get("/api/admin/daily-sync")
+async def trigger_daily_sync():
+    """Endpoint para activar la actualización nocturna a las 3:00 AM (desde Cloud Scheduler o Cron)."""
+    try:
+        from backend.scripts.daily_updater import run_daily_update
+        asyncio.create_task(run_daily_update())
+        return {
+            "status": "ok",
+            "message": "🌙 Actualización nocturna iniciada exitosamente en segundo plano con protección anti-bot."
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
 @app.post("/api/cache/clean")
 def cache_clean():
     """Limpia registros expirados de la caché."""
