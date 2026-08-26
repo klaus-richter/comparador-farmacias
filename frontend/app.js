@@ -151,11 +151,52 @@ function matchPharmacy(itemFuente, targetPharmacy) {
   return false;
 }
 
+function normalizeSearchText(text) {
+  if (!text) return "";
+  let t = text.toLowerCase();
+  // Separar números de unidades: 100mcg -> 100 mcg, 500mg -> 500 mg, 100comprimidos -> 100 comprimidos
+  t = t.replace(/(\d+)\s*(mg|mcg|g|ml|comp|comprimidos|capsulas|sobres)/gi, '$1 $2');
+  // Normalizar acentos
+  t = t.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  // Normalizar fonética para i/y, b/v, z/s
+  t = t.replace(/y/g, 'i').replace(/v/g, 'b').replace(/z/g, 's');
+  // Limpiar signos
+  t = t.replace(/[^\w\s]/g, ' ');
+  return t.replace(/\s+/g, ' ').trim();
+}
+
+function matchProductInteligente(prodName, searchQuery) {
+  const normProd = normalizeSearchText(prodName);
+  const normQuery = normalizeSearchText(searchQuery);
+
+  const qTokens = normQuery.split(/\s+/).filter(tok => tok.length >= 2);
+  if (qTokens.length === 0) return true;
+
+  // Palabras no numéricas clave (ej: 'eutirox', 'acido', 'acetilsalicilico', 'avamis')
+  const keywords = qTokens.filter(tok => !/^\d+$/.test(tok) && !['comp', 'comprimidos', 'capsulas', 'mg', 'mcg', 'x'].includes(tok));
+
+  // Al menos la primera palabra principal DEBE estar en el producto
+  if (keywords.length > 0) {
+    const mainWord = keywords[0];
+    if (!normProd.includes(mainWord)) {
+      return false;
+    }
+  }
+
+  // Si el usuario especificó dosis numérica (ej: '100', '500', '25', '850'), debe coincidir
+  const queryNums = qTokens.filter(tok => /^\d+$/.test(tok));
+  if (queryNums.length > 0) {
+    const prodNums = normProd.match(/\b\d+\b/g) || [];
+    if (!queryNums.some(num => prodNums.includes(num))) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 // Función con cascadeo inteligente: respeta marcas exactas y evita sustitutos no solicitados
 function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
-  const qLower = (searchProd || "").toLowerCase().trim();
-  const qTokens = qLower.split(/\s+/).filter(t => t.length > 2);
-
   // 1. Filtrar productos de esta farmacia con precio válido
   const items = (allResults || [])
     .filter(item => matchPharmacy(item.fuente, targetPharmacy))
@@ -163,23 +204,17 @@ function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
 
   if (items.length === 0) return null;
 
-  // 2. Nivel 1: Match Fuerte por término buscado
-  const strongMatches = items.filter(item => {
-    const nameLower = (item.nombre || "").toLowerCase();
-    if (nameLower.includes(qLower)) return true;
-    if (qTokens.length > 0 && qTokens.every(token => nameLower.includes(token))) return true;
-    return false;
-  });
+  // 2. Filtrar por match inteligente (marca, dosis y fonética)
+  const matches = items.filter(item => matchProductInteligente(item.nombre, searchProd));
 
-  if (strongMatches.length > 0) {
-    strongMatches.sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
-    return strongMatches[0];
+  if (matches.length > 0) {
+    matches.sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
+    return matches[0];
   }
 
-  // 3. Nivel 2: Si no hubo match fuerte de marca (ej: busco 'eutirox' o 'nariklin' y no existe),
-  // se retorna null para no colar sustitutos ajenos o caros.
   return null;
 }
+
 
 function renderRecipeComparison(receta, queryList) {
   pharmacyGrid.innerHTML = "";
