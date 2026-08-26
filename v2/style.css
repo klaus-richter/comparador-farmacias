@@ -65,13 +65,38 @@ body {
   margin-top: 4px;
 }
 
-/* Label arriba del buscador */
+/* Label y Tips arriba del buscador */
+.search-tips {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: #f8fafc;
+  border-left: 3.5px solid #2563eb;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 0.93rem;
+  color: #334155;
+  margin-bottom: -10px;
+}
+
+.tips-title {
+  font-size: 0.95rem;
+  color: #1e293b;
+  margin-bottom: 1px;
+}
+
+.tip-line {
+  color: #475569;
+  font-weight: 500;
+}
+
 .search-label {
   font-size: 1rem;
   font-weight: 700;
   color: #334155;
   margin-bottom: -10px;
 }
+
 
 /* Search Box */
 .search-box {
@@ -646,4 +671,29 @@ body {
   .pharmacy-grid {
     grid-template-columns: 1fr;
   }
+}
+
+
+
+
+
+/* Footer discreto pero legible */
+.footer-discreet {
+  text-align: center;
+  padding: 45px 0 25px;
+  user-select: none;
+}
+
+.visit-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 9999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #64748b;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
