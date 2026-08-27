@@ -40,7 +40,7 @@ async def buscar_salcobrand(producto: str, max_resultados: int = 6) -> list[dict
                         const href = linkEl.getAttribute('href') || '';
 
                         const brandEl = node.querySelector('.product-name, [class*="brand"]');
-                        const infoEl = node.querySelector('.product-info, [class*="product-info"], [class*="name"], h3, h2');
+                        const infoEl = node.querySelector('.product-info, [class*="product-info"]') || node.querySelector('[class*="name"], h3, h2');
                         const brand = brandEl ? brandEl.innerText.trim() : '';
                         const info = infoEl ? infoEl.innerText.trim() : '';
                         let name = (brand && info && !info.toLowerCase().includes(brand.toLowerCase())) 
