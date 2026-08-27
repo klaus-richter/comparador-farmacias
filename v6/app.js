@@ -74,7 +74,7 @@ function startWaitingAnimation(query) {
   if (progressInterval) clearInterval(progressInterval);
   if (stepInterval) clearInterval(stepInterval);
 
-  // Progreso dinámico y rápido calibrado a los nuevos tiempos (avanza cada 200ms)
+  // Progreso dinámico y rápido calibrado a los nuevos tiempos (avanza cada 450ms)
   progressInterval = setInterval(() => {
     if (currentPercent < 50) {
       currentPercent += Math.floor(Math.random() * 5) + 4; // Rápido al inicio
@@ -90,9 +90,9 @@ function startWaitingAnimation(query) {
 
     const fillEl = document.getElementById("progress-fill");
     if (fillEl) fillEl.style.width = `${currentPercent}%`;
-  }, 220);
+  }, 450);
 
-  // Rotar textos informativos cada 1.3 segundos
+  // Rotar textos informativos cada 2.8 segundos
   stepInterval = setInterval(() => {
     stepIndex = (stepIndex + 1) % DYNAMIC_STEPS.length;
     statusStep.style.opacity = 0;
@@ -100,7 +100,7 @@ function startWaitingAnimation(query) {
       statusStep.textContent = DYNAMIC_STEPS[stepIndex];
       statusStep.style.opacity = 1;
     }, 150);
-  }, 1300);
+  }, 2800);
 }
 
 function stopWaitingAnimation() {
