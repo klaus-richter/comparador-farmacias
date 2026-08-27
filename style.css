@@ -2169,3 +2169,10 @@ body {
         font-size: 1.04rem !important; /* Mismo tamano que el placeholder del input */
     }
 }
+
+/* --- BULLETPROOF MOBILE SEPARATION --- */
+.mobile-element { display: none !important; }
+@media (max-width: 640px) {
+    .desktop-element { display: none !important; }
+    .mobile-element { display: block !important; }
+}
