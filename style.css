@@ -1801,9 +1801,10 @@ body {
 
 
 
+
 /* =========================================================
    VISTA MÓVIL PERFECCIONADA:
-   1. Espaciado horizontal del logo 100% idéntico a la web
+   1. Espaciado horizontal del logo 100% IDÉNTICO a la web
    2. Panel de consejos y buscador elevados hacia arriba
    ========================================================= */
 
@@ -1816,7 +1817,7 @@ body {
     box-sizing: border-box !important;
   }
 
-  /* 1. Logo: Mismos espaciados exactos de la versión web */
+  /* 1. Logo: Mismos espaciados exactos de la versión web (gap: 0, margin-left: 6px) */
   .app-top-nav {
     margin-bottom: 0px !important;
     padding-left: 6px !important;
@@ -1833,6 +1834,9 @@ body {
     letter-spacing: -1.2px !important;
     color: #0E6648 !important;
     line-height: 1 !important;
+    gap: 0 !important;
+    display: flex !important;
+    align-items: center !important;
   }
 
   .logo-breaking-bad span {
@@ -1841,12 +1845,13 @@ body {
     padding: 4px 12px !important;
     border-radius: 7px !important;
     margin-left: 6px !important;
+    margin-right: 0 !important;
   }
 
   .pill-container, .pill-realistic {
     width: 17px !important;
     height: 38px !important;
-    margin-right: 15px !important;
+    margin-right: 14px !important;
     border: 2.8px solid #111111 !important;
   }
 
@@ -1896,7 +1901,7 @@ body {
     color: #334155 !important;
   }
 
-  /* 4. Buscador y Botón 'Buscar Precios' elevados */
+  /* 4. Buscador y Botón 'Buscar Precios' */
   .search-box {
     padding: 7px 8px !important;
     gap: 7px !important;
