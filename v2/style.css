@@ -1,15 +1,22 @@
 
-/* --- LOGO OFICIAL ESTILO PROPUESTA 7 --- */
+
+/* =========================================================================
+   🎨 LOGO OFICIAL & TIPS - DISEÑO EXACTO APROBADO
+   ========================================================================= */
 :root {
-  --verde-vibrante: #10b981;
-  --verde-oscuro: #11382b;
-  --tips-border-verde: #10b981;
+  --bg-real-app: #f4f7f9;
+  --title-blue: #0b1c3f;
+  --text-gray-sub: #4b5563;
+  --btn-blue-real: #2563eb;
+  --tips-border-verde: #10b981; 
+  --verde-vibrante: #10b981; 
+  --verde-oscuro: #11382b;   
 }
 
 .app-top-nav {
   display: flex;
   width: 100%;
-  margin-bottom: 20px;
+  margin-bottom: 35px;
   justify-content: flex-start;
 }
 
@@ -74,6 +81,52 @@
   background-color: var(--verde-vibrante);
   z-index: 1; 
 }
+
+.title-block-real {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.hospital-icon-native {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.real-title {
+  font-size: 2.1rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+  color: var(--title-blue);
+}
+
+.search-tips, .real-tips-container {
+  background-color: #ffffff !important;
+  border-radius: 4px !important;
+  border-left: 4px solid var(--tips-border-verde) !important;
+  padding: 15px 20px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  margin-bottom: 20px !important;
+  text-align: left !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02) !important;
+}
+
+.search-tips .tips-title, .real-tips-container h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: #111827;
+}
+
+.search-tips .tip-line, .real-tips-container ul {
+  color: #374151;
+  font-size: 0.9rem;
+}
+
 
 * {
   box-sizing: border-box;
