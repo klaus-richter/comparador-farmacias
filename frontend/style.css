@@ -1972,19 +1972,20 @@ body {
 
 
 
+
 /* =========================================================
-   VISTA MÓVIL CENTRADA, EQUILIBRADA Y CALIBRADA CON TECLADO
+   VISTA MÓVIL FINAL CON RESPIROS VERTICALES GENEROSOS
    ========================================================= */
 @media (max-width: 640px) {
   body {
-    padding: 16px 8px 16px 8px !important;
+    padding: 16px 8px 18px 8px !important;
   }
 
   .app {
     gap: 6px !important;
   }
 
-  /* 1. Logo Centrado con buen aire vertical con el techo y con el título */
+  /* 1. Logo Centrado con aire vertical con el techo y con el título */
   .app-top-nav {
     justify-content: center !important;
     margin-bottom: 16px !important;
@@ -2023,17 +2024,17 @@ body {
     border: 2.8px solid #111111 !important;
   }
 
-  /* 2. Título separado en 'Cotiza Precios de' y 'tu Receta' */
+  /* 2. Título separado en 2 líneas y más aire hacia el subtítulo */
   .hero {
     padding: 0 !important;
-    gap: 3px !important;
-    margin-bottom: 10px !important;
+    gap: 0 !important;
+    margin-bottom: 8px !important;
   }
 
   .hero h1 {
-    font-size: 1.90rem !important;
-    line-height: 1.16 !important;
-    margin: 0 !important;
+    font-size: 1.95rem !important;
+    line-height: 1.18 !important;
+    margin: 0 0 12px 0 !important;
     font-weight: 900 !important;
   }
 
@@ -2041,37 +2042,38 @@ body {
     display: block !important;
   }
 
-  /* Subtítulo agrandado y nítido */
+  /* Subtítulo agrandado con aire generoso arriba y abajo */
   .hero-instructions {
-    font-size: 1.10rem !important;
-    margin-top: 3px !important;
-    margin-bottom: 8px !important;
+    font-size: 1.14rem !important;
+    margin-top: 0 !important;
+    margin-bottom: 16px !important;
     color: #334155 !important;
     font-weight: 700 !important;
+    line-height: 1.25 !important;
   }
 
-  /* 3. Consejos con buen respiro vertical hacia el buscador */
+  /* 3. Consejos con respiro vertical hacia el buscador */
   .search-tips {
     background: #ffffff !important;
     border: 1.5px solid #10b981 !important;
     border-left: 4.5px solid #10b981 !important;
     border-radius: 10px !important;
-    padding: 8px 12px !important;
+    padding: 9px 12px !important;
     gap: 3px !important;
     margin-top: 0px !important;
-    margin-bottom: 16px !important;
+    margin-bottom: 18px !important;
   }
 
   .tips-title {
     color: #059669 !important;
-    font-size: 0.98rem !important;
+    font-size: 1.00rem !important;
     font-weight: 800 !important;
-    margin-bottom: 1px !important;
+    margin-bottom: 2px !important;
   }
 
   .tip-line {
     font-size: 0.90rem !important;
-    line-height: 1.30 !important;
+    line-height: 1.32 !important;
     color: #334155 !important;
     white-space: nowrap !important;
   }
@@ -2080,7 +2082,7 @@ body {
     color: #065f46 !important;
   }
 
-  /* 4. Buscador y Botón 'Comparar Farmacias' calzando justo sobre el teclado */
+  /* 4. Buscador y Botón 'Comparar Farmacias' */
   .search-box {
     flex-direction: column !important;
     padding: 8px !important;
