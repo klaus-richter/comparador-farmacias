@@ -935,3 +935,19 @@ body {
   color: #9a3412 !important;
   line-height: 1.25 !important;
 }
+
+/* Transición fluida y elegante para la tabla de resultados (cero saltos / cero efecto fantasma) */
+.results-wrapper {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.30s ease, transform 0.30s ease;
+}
+
+.results-wrapper.visible {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+}
+
+.status-bar {
+  transition: opacity 0.20s ease, transform 0.20s ease;
+}
