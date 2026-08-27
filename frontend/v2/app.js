@@ -318,6 +318,21 @@ function renderRecipeComparison(receta, queryList) {
   const available = totals.filter(t => t.availableCount > 0);
   const unavailable = totals.filter(t => t.availableCount === 0);
 
+  // Si NINGUNA farmacia tiene ningún medicamento (búsqueda inexistente o mal escrita)
+  if (available.length === 0) {
+    pharmacyGrid.innerHTML = `
+      <div class="empty-search-alert">
+        <div class="empty-alert-icon">🔍⚠️</div>
+        <div class="empty-alert-title">No encontramos medicamentos para tu búsqueda</div>
+        <div class="empty-alert-desc">
+          Verifica que el nombre esté bien escrito o prueba buscando por el <strong>principio activo</strong> (ej: <em>paracetamol, ibuprofeno, losartán, omeprazol</em>).
+        </div>
+      </div>
+    `;
+    resultsWrapper.style.display = "flex";
+    return;
+  }
+
   // Buscar si hay farmacias completas
   const completePharmacies = available.filter(t => t.isComplete);
   let winner = null;
