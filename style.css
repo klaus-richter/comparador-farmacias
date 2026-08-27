@@ -2129,3 +2129,23 @@ body {
     border-radius: 12px !important;
   }
 }
+
+
+
+
+/* --- ÚLTIMOS AJUSTES MÓVILES (AIRE Y TIPOGRAFÍA) --- */
+@media (max-width: 640px) {
+    .app-top-nav {
+        margin-bottom: 30px !important; /* Más aire entre logo y título */
+    }
+    .hero h1 {
+        margin-bottom: 24px !important; /* Más aire vertical debajo del título */
+    }
+    .hero-instructions {
+        font-size: 1.15rem !important; /* Agrandar la letra de ingresa los medicamentos */
+        margin-bottom: 24px !important; /* Más aire vertical debajo de ingresa los medicamentos y los consejos */
+    }
+    .search-tips {
+        margin-bottom: 20px !important; /* Separar verticalmente un poco más la seccion consejos con la del buscador */
+    }
+}
