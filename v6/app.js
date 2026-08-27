@@ -224,14 +224,6 @@ function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
   if (exactMatches.length > 0) {
     exactMatches.sort((a, b) => {
       const normQ = normalizeSearchText(searchProd).split(/\s+/);
-      const queryHasNumbers = /\d/.test(searchProd);
-      const aHasNumbers = /\d/.test(a.nombre);
-      const bHasNumbers = /\d/.test(b.nombre);
-      
-      if (!queryHasNumbers) {
-        if (aHasNumbers && !bHasNumbers) return 1;
-        if (!aHasNumbers && bHasNumbers) return -1;
-      }
 
       // Penalizacion Inteligente de "Apellidos" y Variantes
       if (normQ.length > 0) {
@@ -245,7 +237,7 @@ function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
         }
         
         const UNWANTED_MODIFIERS = ['infantil', 'pediatrico', 'pediátrico', 'jarabe', 'gotas', 'suspension', 'supositorios', 'fol', 'forte', 'plus', 'sr', 'xr', 'lp', 'cd', 'ap', 'd', 'c', 'dia', 'noche', 'mujer', 'hombre'];
-        const ignoreList = ['mg', 'mcg', 'g', 'ml', 'ui', 'u', 'comp', 'comprimidos', 'capsulas', 'grageas', 'jeringas', 'ampollas', 'sobres', 'x', 'cm', 'l'];
+        const ignoreList = ['mg', 'mcg', 'g', 'ml', 'ui', 'u', 'comp', 'comprimidos', 'capsulas', 'grageas', 'jeringas', 'ampollas', 'sobres', 'x', 'cm', 'l', 'recubiertos', 'recubierto'];
         
         const getPenaltyScore = (prodName) => {
            let penalty = 0;
@@ -253,15 +245,15 @@ function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
            
            words.forEach(w => {
              if (normQ.includes(w)) return; // Si el usuario lo pidio explicitamente, no hay penalidad
-             if (ignoreList.includes(w) || /^\d+$/.test(w)) return; // Ignorar unidades de medida y numeros
+             if (ignoreList.includes(w)) return; // Ignorar unidades de medida y palabras irrelevantes
              
              // Castigo severo para modificadores que cambian el tipo de droga/paciente (Aplica transversal a TODO)
              if (UNWANTED_MODIFIERS.includes(w)) {
                 penalty += 100;
              }
-             // Castigo leve para palabras extra en MARCAS (exige match exacto del nombre)
+             // Castigo leve para palabras extra en MARCAS (exige match exacto del nombre, incluyendo NÚMEROS extra como '20' o '500')
              else if (!isPA) {
-                if (w.length >= 2) penalty += 1;
+                if (w.length >= 2 || /^\d+$/.test(w)) penalty += 1;
              }
            });
            return penalty;
