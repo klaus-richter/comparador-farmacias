@@ -101,7 +101,9 @@ async def _scrape_page_ahumada(page, producto: str) -> List[Dict[str, Any]]:
 
 
 async def _scrape_page_salcobrand(page, producto: str) -> List[Dict[str, Any]]:
-    url = f"https://salcobrand.cl/search_result?query={producto}"
+    import urllib.parse
+    q_enc = urllib.parse.quote_plus(producto)
+    url = f"https://salcobrand.cl/search_result?query={q_enc}"
     await page.route("**/*", _block_resources)
     await page.goto(url, wait_until="domcontentloaded", timeout=20000)
     try:
