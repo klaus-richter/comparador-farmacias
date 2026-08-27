@@ -318,15 +318,15 @@ function renderRecipeComparison(receta, queryList) {
   const available = totals.filter(t => t.availableCount > 0);
   const unavailable = totals.filter(t => t.availableCount === 0);
 
-  // Si NINGUNA farmacia tiene ningún medicamento (búsqueda inexistente o mal escrita)
+    // Si NINGUNA farmacia tiene ningún medicamento (búsqueda inexistente o mal escrita)
   if (available.length === 0) {
     pharmacyGrid.innerHTML = `
       <div class="empty-search-alert">
-        <div class="empty-alert-icon">🔍⚠️</div>
-        <div class="empty-alert-title">No encontramos medicamentos para tu búsqueda</div>
-        <div class="empty-alert-desc">Verifica que el nombre esté bien escrito.</div>
+        <span class="empty-alert-icon">⚠️</span>
+        <span class="empty-alert-text">No encontramos resultados. Verifica que el nombre esté bien escrito.</span>
       </div>
     `;
+    comparisonSummary.style.display = "none";
     resultsWrapper.style.display = "flex";
     return;
   }
