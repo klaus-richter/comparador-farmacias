@@ -2560,8 +2560,20 @@ const ISPEngineClient = {
       }
     }
 
-    // 4. MATCH INCLUSIVO (Sin restricciones de listas cerradas)
-    return true;
+    // 3.5 CANDADO DE APELLIDOS OBLIGATORIOS
+      const IMPORTANT_MODIFIERS = ['infantil', 'pediatrico', 'pediátrico', 'jarabe', 'gotas', 'suspension', 'supositorios', 'fol', 'forte', 'plus', 'sr', 'xr', 'lp', 'cd', 'ap', 'dia', 'noche', 'mujer', 'hombre'];
+      const requestedModifiers = qTokens.filter(tok => IMPORTANT_MODIFIERS.includes(tok));
+      if (requestedModifiers.length > 0) {
+        const prodWords = normProd.split(/\s+/);
+        for (const mod of requestedModifiers) {
+           if (!prodWords.includes(mod) && !normProd.includes(mod)) {
+              return false;
+           }
+        }
+      }
+
+      // 4. MATCH INCLUSIVO (Sin restricciones de listas cerradas)
+      return true;
   }
 };
 
