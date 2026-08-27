@@ -55,51 +55,64 @@ const DYNAMIC_STEPS = [
 ];
 
 let progressInterval = null;
+let stepInterval = null;
 let currentPercent = 0;
 
 function startWaitingAnimation(query) {
   statusBar.style.display = "flex";
   statusBar.className = "status-bar info";
   spinner.style.display = "block";
-  currentPercent = 6;
+  currentPercent = 15;
   
-  statusTitle.innerHTML = `Buscando medicamentos... <span class="progress-pct" id="progress-pct">6%</span>`;
+  statusTitle.innerHTML = `Buscando medicamentos... <span class="progress-pct" id="progress-pct">15%</span>`;
   
   const fillEl = document.getElementById("progress-fill");
-  if (fillEl) fillEl.style.width = "6%";
+  if (fillEl) fillEl.style.width = "15%";
 
   let stepIndex = 0;
   statusStep.textContent = DYNAMIC_STEPS[0];
   statusStep.style.opacity = 1;
 
   if (progressInterval) clearInterval(progressInterval);
+  if (stepInterval) clearInterval(stepInterval);
 
+  // Progreso dinámico y rápido calibrado a los nuevos tiempos (avanza cada 200ms)
   progressInterval = setInterval(() => {
-    // Incremento suave del porcentaje hasta el 95%
-    if (currentPercent < 95) {
-      currentPercent += Math.floor(Math.random() * 5) + 3;
-      if (currentPercent > 95) currentPercent = 95;
+    if (currentPercent < 50) {
+      currentPercent += Math.floor(Math.random() * 5) + 4; // Rápido al inicio
+    } else if (currentPercent < 80) {
+      currentPercent += Math.floor(Math.random() * 4) + 2; // Medio
+    } else if (currentPercent < 95) {
+      currentPercent += Math.floor(Math.random() * 2) + 1; // Suave hacia el 95%
     }
+    if (currentPercent > 95) currentPercent = 95;
+
     const pctEl = document.getElementById("progress-pct");
     if (pctEl) pctEl.textContent = `${currentPercent}%`;
 
     const fillEl = document.getElementById("progress-fill");
     if (fillEl) fillEl.style.width = `${currentPercent}%`;
+  }, 220);
 
-    // Cambiar mensaje a ritmo pausado y legible (~2.6 segundos)
+  // Rotar textos informativos cada 1.3 segundos
+  stepInterval = setInterval(() => {
     stepIndex = (stepIndex + 1) % DYNAMIC_STEPS.length;
     statusStep.style.opacity = 0;
     setTimeout(() => {
       statusStep.textContent = DYNAMIC_STEPS[stepIndex];
       statusStep.style.opacity = 1;
-    }, 220);
-  }, 2600);
+    }, 150);
+  }, 1300);
 }
 
 function stopWaitingAnimation() {
   if (progressInterval) { 
     clearInterval(progressInterval); 
     progressInterval = null; 
+  }
+  if (stepInterval) {
+    clearInterval(stepInterval);
+    stepInterval = null;
   }
   const pctEl = document.getElementById("progress-pct");
   if (pctEl) pctEl.textContent = "100%";
