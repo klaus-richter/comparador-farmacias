@@ -233,7 +233,7 @@ function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
         if (!aHasNumbers && bHasNumbers) return -1;
       }
 
-      // Penalizacion Transversal de Variantes de Marcas
+      // Penalizacion Inteligente de "Apellidos" y Variantes
       if (normQ.length > 0) {
         const firstWord = normQ[0];
         let isPA = false;
@@ -244,22 +244,34 @@ function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
            }
         }
         
-        if (!isPA) {
-          const ignoreList = ['mg', 'mcg', 'g', 'ml', 'ui', 'u', 'comp', 'comprimidos', 'capsulas', 'grageas', 'jeringas', 'ampollas', 'sobres', 'x', 'cm', 'l'];
-          const countExtra = (prodName) => {
-             return normalizeSearchText(prodName).split(/\s+/).filter(w => {
-               if (ignoreList.includes(w) || /^\d+$/.test(w) || normQ.includes(w)) return false;
-               if (['d', 'c', 'sr', 'xr', 'lp', 'cd', 'ap'].includes(w)) return true;
-               if (w.length < 2) return false;
-               return true;
-             }).length;
-          };
+        const UNWANTED_MODIFIERS = ['infantil', 'pediatrico', 'pediátrico', 'jarabe', 'gotas', 'suspension', 'supositorios', 'fol', 'forte', 'plus', 'sr', 'xr', 'lp', 'cd', 'ap', 'd', 'c', 'dia', 'noche', 'mujer', 'hombre'];
+        const ignoreList = ['mg', 'mcg', 'g', 'ml', 'ui', 'u', 'comp', 'comprimidos', 'capsulas', 'grageas', 'jeringas', 'ampollas', 'sobres', 'x', 'cm', 'l'];
+        
+        const getPenaltyScore = (prodName) => {
+           let penalty = 0;
+           const words = normalizeSearchText(prodName).split(/\s+/);
+           
+           words.forEach(w => {
+             if (normQ.includes(w)) return; // Si el usuario lo pidio explicitamente, no hay penalidad
+             if (ignoreList.includes(w) || /^\d+$/.test(w)) return; // Ignorar unidades de medida y numeros
+             
+             // Castigo severo para modificadores que cambian el tipo de droga/paciente (Aplica transversal a TODO)
+             if (UNWANTED_MODIFIERS.includes(w)) {
+                penalty += 100;
+             }
+             // Castigo leve para palabras extra en MARCAS (exige match exacto del nombre)
+             else if (!isPA) {
+                if (w.length >= 2) penalty += 1;
+             }
+           });
+           return penalty;
+        };
 
-          const aExtra = countExtra(a.nombre);
-          const bExtra = countExtra(b.nombre);
-          if (aExtra !== bExtra) {
-             return aExtra - bExtra;
-          }
+        const aPenalty = getPenaltyScore(a.nombre);
+        const bPenalty = getPenaltyScore(b.nombre);
+        
+        if (aPenalty !== bPenalty) {
+           return aPenalty - bPenalty;
         }
       }
 
