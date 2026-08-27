@@ -566,3 +566,15 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 });
+
+// Hipervínculo táctil y de clic infalible en Logo QueFarmacia.cl
+document.addEventListener("DOMContentLoaded", () => {
+  const logoElements = document.querySelectorAll(".logo-home-link, .app-top-nav, .logo-breaking-bad-wrapper");
+  logoElements.forEach(el => {
+    el.style.cursor = "pointer";
+    el.addEventListener("click", (e) => {
+      e.preventDefault();
+      window.location.href = "https://quefarmacia.cl/";
+    });
+  });
+});
