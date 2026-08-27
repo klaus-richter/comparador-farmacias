@@ -1971,22 +1971,30 @@ body {
 }
 
 
+
 /* =========================================================
-   CALIBRACIÓN MILIMÉTRICA MÓVIL SOBRE TECLADO VIRTUAL
+   VISTA MÓVIL CENTRADA, EQUILIBRADA Y CALIBRADA CON TECLADO
    ========================================================= */
 @media (max-width: 640px) {
   body {
-    padding: 14px 8px 16px 8px !important;
+    padding: 16px 8px 16px 8px !important;
   }
 
   .app {
-    gap: 4px !important;
+    gap: 6px !important;
   }
 
-  /* 1. Aire superior con el techo y aire con el título */
+  /* 1. Logo Centrado con buen aire vertical con el techo y con el título */
   .app-top-nav {
-    margin-bottom: 12px !important;
-    padding-left: 4px !important;
+    justify-content: center !important;
+    margin-bottom: 16px !important;
+    padding-left: 0 !important;
+    display: flex !important;
+    width: 100% !important;
+  }
+
+  .logo-wrapper {
+    justify-content: center !important;
   }
 
   .logo-breaking-bad {
@@ -2015,30 +2023,34 @@ body {
     border: 2.8px solid #111111 !important;
   }
 
-  /* 2. Título y Subtítulo legibles */
+  /* 2. Título separado en 'Cotiza Precios de' y 'tu Receta' */
   .hero {
     padding: 0 !important;
-    gap: 2px !important;
-    margin-bottom: 8px !important;
+    gap: 3px !important;
+    margin-bottom: 10px !important;
   }
 
   .hero h1 {
-    font-size: 1.85rem !important;
-    line-height: 1.15 !important;
+    font-size: 1.90rem !important;
+    line-height: 1.16 !important;
     margin: 0 !important;
     font-weight: 900 !important;
   }
 
-  .hero-instructions {
-    font-size: 1.02rem !important;
-    margin-top: 2px !important;
-    margin-bottom: 6px !important;
-    color: #475569 !important;
-    font-weight: 600 !important;
-    white-space: nowrap !important;
+  .mobile-break {
+    display: block !important;
   }
 
-  /* 3. Consejos en 1 sola línea c/u (74px de alto total) */
+  /* Subtítulo agrandado y nítido */
+  .hero-instructions {
+    font-size: 1.10rem !important;
+    margin-top: 3px !important;
+    margin-bottom: 8px !important;
+    color: #334155 !important;
+    font-weight: 700 !important;
+  }
+
+  /* 3. Consejos con buen respiro vertical hacia el buscador */
   .search-tips {
     background: #ffffff !important;
     border: 1.5px solid #10b981 !important;
@@ -2047,7 +2059,7 @@ body {
     padding: 8px 12px !important;
     gap: 3px !important;
     margin-top: 0px !important;
-    margin-bottom: 10px !important;
+    margin-bottom: 16px !important;
   }
 
   .tips-title {
@@ -2062,8 +2074,6 @@ body {
     line-height: 1.30 !important;
     color: #334155 !important;
     white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
   }
 
   .tip-line strong {
@@ -2082,19 +2092,19 @@ body {
   .input-wrap {
     width: 100% !important;
     padding: 4px 6px !important;
-    height: 42px !important;
+    height: 44px !important;
   }
 
   .search-box input {
-    font-size: 1.02rem !important;
+    font-size: 1.04rem !important;
     padding: 4px !important;
   }
 
   .search-box button {
     width: 100% !important;
-    padding: 12px !important;
+    padding: 13px !important;
     height: 48px !important;
-    font-size: 1.08rem !important;
+    font-size: 1.10rem !important;
     font-weight: 800 !important;
     border-radius: 10px !important;
     display: flex !important;
