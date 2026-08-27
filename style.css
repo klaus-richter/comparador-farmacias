@@ -1497,8 +1497,9 @@ body {
 
 
 
+
 /* =========================================================
-   VISTA MÓVIL DUAL: 2 TARJETAS SIMULTÁNEAS (Top 1 y Top 2)
+   VISTA MÓVIL DUAL: ALINEACIÓN MILIMÉTRICA FILA POR FILA
    ========================================================= */
 
 @media (max-width: 640px) {
@@ -1515,6 +1516,7 @@ body {
     gap: 8px !important;
     padding: 4px 2px 16px 2px !important;
     margin: 0 !important;
+    align-items: stretch !important;
     scrollbar-width: none;
   }
 
@@ -1522,7 +1524,7 @@ body {
     display: none;
   }
 
-  /* 2 Tarjetas exactas ocupando el 48.5% del ancho cada una */
+  /* 2 Tarjetas exactas ocupando el 48.5% del ancho */
   .pharmacy-column {
     flex: 0 0 calc(50% - 4px) !important;
     min-width: calc(50% - 4px) !important;
@@ -1530,17 +1532,22 @@ body {
     scroll-snap-align: start !important;
     border-radius: 12px !important;
     box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-sizing: border-box !important;
   }
 
-  /* Cabecera vertical compacta */
+  /* 1. Cabecera con altura FIJA exacta en todas las farmacias */
   .col-header {
     padding: 8px 6px !important;
-    min-height: 52px !important;
-    height: auto !important;
+    height: 60px !important;
+    min-height: 60px !important;
+    max-height: 60px !important;
+    display: flex !important;
     flex-direction: column !important;
     align-items: flex-start !important;
-    justify-content: center !important;
-    gap: 3px !important;
+    justify-content: space-between !important;
+    box-sizing: border-box !important;
   }
 
   .pharmacy-badge-title {
@@ -1548,6 +1555,10 @@ body {
     font-weight: 800 !important;
     gap: 4px !important;
     line-height: 1.1 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    width: 100% !important;
   }
 
   .pharmacy-logo {
@@ -1556,42 +1567,66 @@ body {
   }
 
   .rank-badge {
-    font-size: 0.65rem !important;
+    font-size: 0.62rem !important;
     padding: 2px 6px !important;
     border-radius: 4px !important;
     font-weight: 800 !important;
+    line-height: 1 !important;
   }
 
-  /* Sección Total */
+  /* 2. Sección Total con altura FIJA exacta en todas las farmacias */
   .col-best-offer {
     padding: 8px 6px !important;
+    height: 68px !important;
+    min-height: 68px !important;
+    max-height: 68px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
   }
 
   .offer-label {
-    font-size: 0.62rem !important;
+    font-size: 0.60rem !important;
     letter-spacing: 0 !important;
     margin-bottom: 2px !important;
+    white-space: nowrap !important;
   }
 
   .offer-price {
     font-size: 1.25rem !important;
+    line-height: 1.1 !important;
   }
 
-  /* Items de medicamentos: Nombre arriba, Precio y link abajo */
+  /* 3. Lista de medicamentos */
   .col-recipe-items {
     padding: 6px !important;
     gap: 6px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
   }
 
+  /* 4. Tarjeta individual de medicamento con altura FIJA exacta */
   .recipe-item-card {
     padding: 6px 7px !important;
     margin-bottom: 0 !important;
     border-radius: 8px !important;
+    height: 52px !important;
+    min-height: 52px !important;
+    max-height: 52px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
   }
 
   .recipe-item-head {
+    display: flex !important;
     flex-direction: column !important;
     align-items: flex-start !important;
+    justify-content: space-between !important;
+    height: 100% !important;
     gap: 2px !important;
   }
 
@@ -1602,7 +1637,8 @@ body {
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
-    max-width: 100% !important;
+    width: 100% !important;
+    line-height: 1.1 !important;
   }
 
   .recipe-item-right {
@@ -1610,16 +1646,36 @@ body {
     align-items: center !important;
     justify-content: space-between !important;
     width: 100% !important;
-    margin-top: 2px !important;
   }
 
   .recipe-prod-price {
     font-size: 0.95rem !important;
     font-weight: 800 !important;
+    line-height: 1 !important;
   }
 
   .icon-link-btn {
     padding: 2px 5px !important;
-    font-size: 0.75rem !important;
+    font-size: 0.72rem !important;
+    border-radius: 4px !important;
   }
+}
+
+/* Enlace del logo a Home */
+.logo-home-link {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.logo-home-link:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.logo-home-link:active {
+  transform: scale(0.98);
 }
