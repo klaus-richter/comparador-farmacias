@@ -214,8 +214,9 @@ body {
 
 .tips-title {
   font-size: 1.08rem;
-  font-weight: 700;
-  color: #1e293b;
+  font-weight: 800;
+  color: #10b981;
+  letter-spacing: 0.03em;
   margin-bottom: 2px;
 }
 
