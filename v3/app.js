@@ -555,3 +555,14 @@ function trackClickEvent(medicineName, pharmacyName, price, url, isCheapest) {
     }).catch(() => {});
   } catch (e) {}
 }
+
+// Click en Logo para reiniciar/refrescar la página a Home
+document.addEventListener("DOMContentLoaded", () => {
+  const logo = document.querySelector(".app-top-nav");
+  if (logo) {
+    logo.style.cursor = "pointer";
+    logo.addEventListener("click", () => {
+      window.location.href = "/";
+    });
+  }
+});
