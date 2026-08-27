@@ -60,52 +60,65 @@ function startWaitingAnimation(query) {
   statusBar.style.display = "flex";
   statusBar.className = "status-bar info";
   spinner.style.display = "block";
-  currentPercent = 15;
+  currentPercent = 0;
   
-  statusTitle.innerHTML = `Buscando medicamentos... <span class="progress-pct" id="progress-pct">15%</span>`;
+  statusTitle.innerHTML = `Buscando medicamentos... <span class="progress-pct" id="progress-pct">0%</span>`;
   
   const fillEl = document.getElementById("progress-fill");
-  if (fillEl) fillEl.style.width = "15%";
+  if (fillEl) fillEl.style.width = "0%";
 
   let stepIndex = 0;
   statusStep.textContent = DYNAMIC_STEPS[0];
   statusStep.style.opacity = 1;
 
-  if (progressInterval) clearInterval(progressInterval);
+  if (progressInterval) {
+    clearTimeout(progressInterval);
+    clearInterval(progressInterval);
+  }
   if (stepInterval) clearInterval(stepInterval);
 
-  // Progreso dinámico y rápido calibrado a los nuevos tiempos (avanza cada 200ms)
-  progressInterval = setInterval(() => {
-    if (currentPercent < 50) {
-      currentPercent += Math.floor(Math.random() * 5) + 4; // Rápido al inicio
-    } else if (currentPercent < 80) {
-      currentPercent += Math.floor(Math.random() * 4) + 2; // Medio
-    } else if (currentPercent < 95) {
-      currentPercent += Math.floor(Math.random() * 2) + 1; // Suave hacia el 95%
-    }
-    if (currentPercent > 95) currentPercent = 95;
+  // Progreso suave y continuo de 1% en 1% de 0 a 100
+  function tickProgress() {
+    if (currentPercent >= 98) return;
+    currentPercent += 1;
 
     const pctEl = document.getElementById("progress-pct");
     if (pctEl) pctEl.textContent = `${currentPercent}%`;
 
     const fillEl = document.getElementById("progress-fill");
     if (fillEl) fillEl.style.width = `${currentPercent}%`;
-  }, 220);
 
-  // Rotar textos informativos cada 1.3 segundos
+    // Ritmo calibrado: avanza de 1 en 1 de forma fluida
+    let delay = 65; // 0% a 45%: ~3.0s
+    if (currentPercent > 45 && currentPercent <= 75) {
+      delay = 90; // 45% a 75%: ~2.7s
+    } else if (currentPercent > 75 && currentPercent <= 90) {
+      delay = 140; // 75% a 90%: ~2.1s
+    } else if (currentPercent > 90) {
+      delay = 280; // 90% a 98%: ~2.2s
+    }
+
+    progressInterval = setTimeout(tickProgress, delay);
+  }
+
+  progressInterval = setTimeout(tickProgress, 50);
+
+  // Rotar textos informativos cada 2.8 segundos (tiempo suficiente para leerlos con calma)
   stepInterval = setInterval(() => {
     stepIndex = (stepIndex + 1) % DYNAMIC_STEPS.length;
+    statusStep.style.transition = "opacity 0.25s ease";
     statusStep.style.opacity = 0;
     setTimeout(() => {
       statusStep.textContent = DYNAMIC_STEPS[stepIndex];
       statusStep.style.opacity = 1;
-    }, 150);
-  }, 1300);
+    }, 250);
+  }, 2800);
 }
 
 function stopWaitingAnimation() {
   if (progressInterval) { 
-    clearInterval(progressInterval); 
+    clearTimeout(progressInterval); 
+    clearInterval(progressInterval);
     progressInterval = null; 
   }
   if (stepInterval) {
@@ -116,8 +129,11 @@ function stopWaitingAnimation() {
   if (pctEl) pctEl.textContent = "100%";
   const fillEl = document.getElementById("progress-fill");
   if (fillEl) fillEl.style.width = "100%";
-  spinner.style.display = "none";
-  statusBar.style.display = "none";
+  
+  setTimeout(() => {
+    spinner.style.display = "none";
+    statusBar.style.display = "none";
+  }, 200);
 }
 
 function showErrorStatus(message) {
