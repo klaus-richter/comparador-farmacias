@@ -146,39 +146,11 @@ async def _scrape_page_salcobrand(page, producto: str) -> List[Dict[str, Any]]:
             }
 
             if (name) {
-                const ignoreEls = card.querySelectorAll('.jss2, .jss7, [class*="unit-price"], [class*="price-per-unit"], [class*="unit_price"], .display-card-price, [class*="card-price"]');
-                ignoreEls.forEach(el => el.setAttribute('data-ignore-price', 'true'));
-
-                const farmaciaSelectors = ['.display-secoundary-price-normal', '.display-secondary-price-normal', '.display-normal-price', '.display-price-normal', '[class*="secoundary"]', '[class*="secondary"]'];
-                const fallbackSelectors = ['.display-offer-price', '.product-prices .price', '.product-prices span:not([data-ignore-price="true"])'];
-                
-                let selectedPrice = null;
-                for (const sel of farmaciaSelectors) {
-                    const el = card.querySelector(sel);
-                    if (el && el.getAttribute('data-ignore-price') !== 'true') {
-                        const m = (el.innerText || '').match(/\$\s*[\d\.]+/);
-                        if (m) { selectedPrice = m[0]; break; }
-                    }
-                }
-                if (!selectedPrice) {
-                    for (const sel of fallbackSelectors) {
-                        const el = card.querySelector(sel);
-                        if (el && el.getAttribute('data-ignore-price') !== 'true') {
-                            const m = (el.innerText || '').match(/\$\s*[\d\.]+/);
-                            if (m) { selectedPrice = m[0]; break; }
-                        }
-                    }
-                }
-                if (!selectedPrice) {
-                    const prices = txt.match(/\$\s*[\d\.]+/g);
-                    if (prices && prices.length > 0) {
-                        selectedPrice = prices[0]; // pick first (usually highest/normal price) instead of lowest to avoid sbpay
-                    }
-                }
-
-                if (selectedPrice) {
+                const prices = txt.match(/\$\s*[\d\.]+/g);
+                if (prices && prices.length > 0) {
                     seen.add(cleanHrefKey);
-                    selectedPrice = selectedPrice.replace(/\s+/g, '');
+                    // Tomamos estrictamente prices[0] que en Salcobrand es SIEMPRE el Precio Farmacia Normal
+                    const selectedPrice = prices[0].replace(/\s+/g, '');
                     const fullHref = href.startsWith('http') ? href : `https://salcobrand.cl${href.startsWith('/') ? '' : '/'}${href}`;
                     results.push({ nombre: name, precio: selectedPrice, url: fullHref, fuente: "Salcobrand", disponible: true });
                 }
