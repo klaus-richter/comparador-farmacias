@@ -223,13 +223,46 @@ function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
   const exactMatches = items.filter(item => matchProductInteligente(item.nombre, searchProd));
   if (exactMatches.length > 0) {
     exactMatches.sort((a, b) => {
+      const normQ = normalizeSearchText(searchProd).split(/\s+/);
       const queryHasNumbers = /\d/.test(searchProd);
       const aHasNumbers = /\d/.test(a.nombre);
       const bHasNumbers = /\d/.test(b.nombre);
+      
       if (!queryHasNumbers) {
         if (aHasNumbers && !bHasNumbers) return 1;
         if (!aHasNumbers && bHasNumbers) return -1;
       }
+
+      // Penalizacion Transversal de Variantes de Marcas
+      if (normQ.length > 0) {
+        const firstWord = normQ[0];
+        let isPA = false;
+        if (typeof ISP_DATA !== 'undefined' && ISP_DATA.principios_activos) {
+           const paKeys = Object.keys(ISP_DATA.principios_activos);
+           if (paKeys.some(pa => pa.includes(firstWord) || firstWord.includes(pa))) {
+              isPA = true;
+           }
+        }
+        
+        if (!isPA) {
+          const ignoreList = ['mg', 'mcg', 'g', 'ml', 'ui', 'u', 'comp', 'comprimidos', 'capsulas', 'grageas', 'jeringas', 'ampollas', 'sobres', 'x', 'cm', 'l'];
+          const countExtra = (prodName) => {
+             return normalizeSearchText(prodName).split(/\s+/).filter(w => {
+               if (ignoreList.includes(w) || /^\d+$/.test(w) || normQ.includes(w)) return false;
+               if (['d', 'c', 'sr', 'xr', 'lp', 'cd', 'ap'].includes(w)) return true;
+               if (w.length < 2) return false;
+               return true;
+             }).length;
+          };
+
+          const aExtra = countExtra(a.nombre);
+          const bExtra = countExtra(b.nombre);
+          if (aExtra !== bExtra) {
+             return aExtra - bExtra;
+          }
+        }
+      }
+
       return parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio);
     });
     return exactMatches[0];
