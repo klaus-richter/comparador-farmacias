@@ -1,193 +1,193 @@
-<!DOCTYPE html>
-
-<html lang="es">
-
-<head>
-
-  <meta name="color-scheme" content="light">
-
-  <meta charset="UTF-8" />
-
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <title>Comparador de Remedios | Precios por Farmacia</title>
-
-    <!-- Cache-Busting Instantáneo -->
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <meta http-equiv="Pragma" content="no-cache" />
-  <meta http-equiv="Expires" content="0" />
-  <link rel="stylesheet" href="style.css?v=1787815498" />
-
-  <link rel="manifest" href="manifest.json">
-
-  <meta name="theme-color" content="#f8fafc">
-
-  <meta name="mobile-web-app-capable" content="yes">
-
-  <meta name="apple-mobile-web-app-capable" content="yes">
-
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
-  <meta name="apple-mobile-web-app-title" content="Comparador">
-
-  <link rel="apple-touch-icon" href="icon-192.png">
-
-</head>
-
-<body>
-
-  <main class="app">
-
-            <!-- 1. Top Logo Izquierda -->
-        <!-- 1. Top Logo Izquierda (Clickeable a Home) -->
-    <div class="app-top-nav">
-      <a href="https://quefarmacia.cl/" onclick="window.location.href='https://quefarmacia.cl/'; return false;" class="logo-home-link" title="QueFarmacia.cl - Inicio">
-        <div class="logo-wrapper">
-          <div class="pill-container" title="QueFarmacia.cl"></div>
-          <div class="logo-breaking-bad desktop-element">Que<span>Farmacia.cl</span></div>
-          <div class="logo-breaking-bad mobile-element" style="font-size: 1.7rem !important; margin-top: 15px !important;">Que<span>Farmacia.cl</span></div>
-        </div>
-      </a>
-    </div>
-
-    <!-- 2. Header / Hero -->
-    <header class="hero">
-      <h1 class="desktop-title">🏥 Cotiza Precios de tu Receta</h1>
-      <h1 class="mobile-title">🏥 Cotiza Precios<br> de tu Receta</h1>
-      <p class="hero-instructions desktop-element">Ingresa los medicamentos separados por coma</p>
-      <p class="hero-instructions mobile-element" style="font-size: 1.04rem !important; margin-bottom: 4px !important;">Ingresa los medicamentos separados por coma</p>
-    </header>
-
-
-
-
-
-
-
-
-
-    <!-- Buscador -->
-
-                        <div class="search-tips">
-      <span class="tips-title"><strong>Consejos</strong></span>
-      <span class="tip-line">• Escribe el <strong>principio activo</strong> para mejores precios 💰</span>
-      <span class="tip-line">• Escribe la <strong>marca</strong> si buscas algo específico 💊</span>
-      <span class="tip-line">• <strong>Verifica</strong> que el link corresponda al medicamento 👀</span>
-    </div>
-
-    <form id="search-form" class="search-box">
-
-
-
-
-
-      <div class="input-wrap">
-
-        <span class="search-icon">🔍</span>
-
-        <input 
-
-          type="text" 
-
-          id="search-input" 
-
-          placeholder="omeprazol, amoxicilina, paracetamol, eutirox 100mcg"
-
-          autocomplete="off"
-
-          autofocus
-
-          required 
-
-        />
-
-      </div>
-
-
-
-      <button type="submit" id="search-btn">
-
-        <span class="btn-text">Comparar Farmacias</span>
-
-      </button>
-
-    </form>
-
-
-
-
-
-
-
-    <!-- Estado / Espera animada -->
-
-    <div id="status-bar" class="status-bar" style="display: none;">
-
-      <div class="spinner" id="spinner" style="display: none;"></div>
-
-      <div class="status-content">
-
-        <div id="status-title" class="status-title"></div>
-
-        <div class="progress-track">
-
-          <div class="progress-fill" id="progress-fill"></div>
-
-        </div>
-
-        <div id="status-step" class="status-step"></div>
-
-      </div>
-
-    </div>
-
-
-
-    <!-- Contenedor Comparador de Columnas -->
-
-    <section id="results-wrapper" class="results-wrapper" style="display: none;">
-
-      <div class="comparison-summary" id="comparison-summary">
-
-        <!-- Resumen del ganador -->
-
-      </div>
-
-      <div class="pharmacy-grid" id="pharmacy-grid">
-
-        <!-- Columnas de farmacias generadas dinámicamente ordenadas de más barata a más cara -->
-
-      </div>
-
-    </section>
-
-  
-
-    
-
-  </main>
-
-
-
-  <script src="isp_dictionary.js?v=1787791807"></script>
-
-  <script src="app.js?v=1787813773"></script>
-
-  <script>
-
-    if ('serviceWorker' in navigator) {
-
-      window.addEventListener('load', () => {
-
-        navigator.serviceWorker.register('sw.js').catch(() => {});
-
-      });
-
-    }
-
-  </script>
-
-</body>
-
-</html>
-
+<!DOCTYPE html>
+
+<html lang="es">
+
+<head>
+
+  <meta name="color-scheme" content="light">
+
+  <meta charset="UTF-8" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Comparador de Remedios | Precios por Farmacia</title>
+
+    <!-- Cache-Busting Instantáneo -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <link rel="stylesheet" href="style.css?v=1787815498" />
+
+  <link rel="manifest" href="manifest.json">
+
+  <meta name="theme-color" content="#f8fafc">
+
+  <meta name="mobile-web-app-capable" content="yes">
+
+  <meta name="apple-mobile-web-app-capable" content="yes">
+
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <meta name="apple-mobile-web-app-title" content="Comparador">
+
+  <link rel="apple-touch-icon" href="icon-192.png">
+
+</head>
+
+<body>
+
+  <main class="app">
+
+            <!-- 1. Top Logo Izquierda -->
+        <!-- 1. Top Logo Izquierda (Clickeable a Home) -->
+    <div class="app-top-nav">
+      <a href="https://quefarmacia.cl/" onclick="window.location.href='https://quefarmacia.cl/'; return false;" class="logo-home-link" title="QueFarmacia.cl - Inicio">
+        <div class="logo-wrapper">
+          <div class="pill-container" title="QueFarmacia.cl"></div>
+          <div class="logo-breaking-bad desktop-element">Que<span>Farmacia.cl</span></div>
+          <div class="logo-breaking-bad mobile-element" style="font-size: 1.7rem !important; margin-top: 15px !important;">Que<span>Farmacia.cl</span></div>
+        </div>
+      </a>
+    </div>
+
+    <!-- 2. Header / Hero -->
+    <header class="hero">
+      <h1 class="desktop-title">🏥 Cotiza Precios de tus Remedios</h1>
+      <h1 class="mobile-title">🏥 Cotiza Precios<br> de tus Remedios</h1>
+      <p class="hero-instructions desktop-element">Ingrésalos separados por coma</p>
+      <p class="hero-instructions mobile-element" style="font-size: 1.04rem !important; margin-bottom: 4px !important;">Ingrésalos separados por coma</p>
+    </header>
+
+
+
+
+
+
+
+
+
+    <!-- Buscador -->
+
+                        <div class="search-tips">
+      <span class="tips-title"><strong>Consejos</strong></span>
+      <span class="tip-line">• Escribe el <strong>principio activo</strong> para mejores precios 💰</span>
+      <span class="tip-line">• Escribe la <strong>marca</strong> si buscas algo específico 💊</span>
+      <span class="tip-line">• <strong>Verifica</strong> que el link corresponda al medicamento 👀</span>
+    </div>
+
+    <form id="search-form" class="search-box">
+
+
+
+
+
+      <div class="input-wrap">
+
+        <span class="search-icon">🔍</span>
+
+        <input 
+
+          type="text" 
+
+          id="search-input" 
+
+          placeholder="omeprazol, eutirox 100, viadul (hasta 10)"
+
+          autocomplete="off"
+
+          autofocus
+
+          required 
+
+        />
+
+      </div>
+
+
+
+      <button type="submit" id="search-btn">
+
+        <span class="btn-text">Comparar Farmacias</span>
+
+      </button>
+
+    </form>
+
+
+
+
+
+
+
+    <!-- Estado / Espera animada -->
+
+    <div id="status-bar" class="status-bar" style="display: none;">
+
+      <div class="spinner" id="spinner" style="display: none;"></div>
+
+      <div class="status-content">
+
+        <div id="status-title" class="status-title"></div>
+
+        <div class="progress-track">
+
+          <div class="progress-fill" id="progress-fill"></div>
+
+        </div>
+
+        <div id="status-step" class="status-step"></div>
+
+      </div>
+
+    </div>
+
+
+
+    <!-- Contenedor Comparador de Columnas -->
+
+    <section id="results-wrapper" class="results-wrapper" style="display: none;">
+
+      <div class="comparison-summary" id="comparison-summary">
+
+        <!-- Resumen del ganador -->
+
+      </div>
+
+      <div class="pharmacy-grid" id="pharmacy-grid">
+
+        <!-- Columnas de farmacias generadas dinámicamente ordenadas de más barata a más cara -->
+
+      </div>
+
+    </section>
+
+  
+
+    
+
+  </main>
+
+
+
+  <script src="isp_dictionary.js?v=1787791807"></script>
+
+  <script src="app.js?v=1787813773"></script>
+
+  <script>
+
+    if ('serviceWorker' in navigator) {
+
+      window.addEventListener('load', () => {
+
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+
+      });
+
+    }
+
+  </script>
+
+</body>
+
+</html>
+
