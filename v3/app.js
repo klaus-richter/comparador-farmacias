@@ -324,9 +324,7 @@ function renderRecipeComparison(receta, queryList) {
       <div class="empty-search-alert">
         <div class="empty-alert-icon">🔍⚠️</div>
         <div class="empty-alert-title">No encontramos medicamentos para tu búsqueda</div>
-        <div class="empty-alert-desc">
-          Verifica que el nombre esté bien escrito o prueba buscando por el <strong>principio activo</strong> (ej: <em>paracetamol, ibuprofeno, losartán, omeprazol</em>).
-        </div>
+        <div class="empty-alert-desc">Verifica que el nombre esté bien escrito.</div>
       </div>
     `;
     resultsWrapper.style.display = "flex";
