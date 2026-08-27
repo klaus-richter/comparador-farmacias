@@ -283,8 +283,10 @@ function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
       return queryNums.some(num => prodNums.includes(num));
     });
     if (doseMatches.length > 0) {
-      fallbackCandidates = doseMatches;
-    }
+        fallbackCandidates = doseMatches;
+      } else {
+        return null;
+      }
   }
 
   fallbackCandidates.sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
