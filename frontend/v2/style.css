@@ -2149,3 +2149,10 @@ body {
         margin-bottom: 20px !important; /* Separar verticalmente un poco más la seccion consejos con la del buscador */
     }
 }
+
+/* --- SEPARACIÓN TÍTULO ESCRITORIO VS MÓVIL --- */
+.mobile-title { display: none; }
+@media (max-width: 640px) {
+    .desktop-title { display: none !important; }
+    .mobile-title { display: block !important; margin: 0 0 24px 0 !important; }
+}
