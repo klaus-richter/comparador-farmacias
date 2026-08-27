@@ -806,3 +806,23 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* fix-mobile-btn */
+
+@media (max-width: 640px) {
+  .search-box {
+    flex-direction: column !important;
+    padding: 8px !important;
+    gap: 8px !important;
+  }
+  .input-wrap {
+    width: 100% !important;
+    padding: 4px 6px !important;
+  }
+  .search-box button {
+    width: 100% !important;
+    padding: 12px !important;
+    font-size: 1.06rem !important;
+    border-radius: 9px !important;
+  }
+}
