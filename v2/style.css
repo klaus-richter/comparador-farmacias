@@ -1,22 +1,8 @@
-
-
-/* =========================================================================
-   🎨 LOGO OFICIAL & TIPS - DISEÑO EXACTO APROBADO
-   ========================================================================= */
-:root {
-  --bg-real-app: #f4f7f9;
-  --title-blue: #0b1c3f;
-  --text-gray-sub: #4b5563;
-  --btn-blue-real: #2563eb;
-  --tips-border-verde: #10b981; 
-  --verde-vibrante: #10b981; 
-  --verde-oscuro: #11382b;   
-}
-
+/* --- LOGO OFICIAL ESTILO QUEFARMACIA --- */
 .app-top-nav {
   display: flex;
   width: 100%;
-  margin-bottom: 35px;
+  margin-bottom: 5px;
   justify-content: flex-start;
 }
 
@@ -31,12 +17,12 @@
   letter-spacing: -1.2px;
   display: flex;
   align-items: center;
-  color: var(--verde-oscuro);
+  color: #11382b;
   line-height: 1;
 }
 
 .logo-breaking-bad span {
-  background-color: var(--verde-vibrante);
+  background-color: #10b981;
   color: #ffffff;
   padding: 3px 10px;
   border-radius: 6px;
@@ -78,54 +64,10 @@
   left: 0;
   width: 100%;
   height: 50%; 
-  background-color: var(--verde-vibrante);
+  background-color: #10b981;
   z-index: 1; 
 }
 
-.title-block-real {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.hospital-icon-native {
-  font-size: 2rem;
-  line-height: 1;
-}
-
-.real-title {
-  font-size: 2.1rem;
-  font-weight: 800;
-  letter-spacing: -0.5px;
-  line-height: 1.2;
-  color: var(--title-blue);
-}
-
-.search-tips, .real-tips-container {
-  background-color: #ffffff !important;
-  border-radius: 4px !important;
-  border-left: 4px solid var(--tips-border-verde) !important;
-  padding: 15px 20px !important;
-  width: 100% !important;
-  box-sizing: border-box !important;
-  margin-bottom: 20px !important;
-  text-align: left !important;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.02) !important;
-}
-
-.search-tips .tips-title, .real-tips-container h3 {
-  font-size: 0.95rem;
-  font-weight: 700;
-  margin: 0 0 8px 0;
-  color: #111827;
-}
-
-.search-tips .tip-line, .real-tips-container ul {
-  color: #374151;
-  font-size: 0.9rem;
-}
 
 
 * {
@@ -202,7 +144,7 @@ body {
   flex-direction: column;
   gap: 3px;
   background: #f8fafc;
-  border-left: 3.5px solid #2563eb;
+  border-left: 3.5px solid #10b981;
   padding: 8px 14px;
   border-radius: 8px;
   font-size: 0.93rem;
