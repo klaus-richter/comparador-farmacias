@@ -22,62 +22,52 @@ const ALL_PHARMACIES = [
   "Ecofarmacias"
 ];
 
-// Mensajes variados, calmantes y descriptivos con emojis
-const DYNAMIC_STEPS = [
-  "🚀 Conectando de forma segura con las 5 farmacias más grandes de Chile...",
-  "🔍 Consultando inventarios en Cruz Verde, Salcobrand, Ahumada, Dr. Simi y Ecofarmacias...",
-  "💊 Conectando con los servidores de Farmacias Ahumada...",
-  "🛒 Verificando promociones y ofertas vigentes en Salcobrand...",
-  "⚡ Extrayendo disponibilidad inmediata en Cruz Verde...",
-  "🧑‍⚕️ Buscando opciones genéricas y bioequivalentes en Dr. Simi...",
-  "🌿 Consultando la base de datos de Ecofarmacias en tiempo real...",
-  "📦 Verificando stock en farmacias online y centros de distribución...",
-  "💰 Detectando descuentos automáticos y precios rebajados...",
-  "🏷️ Identificando si hay convenios o formatos económicos por caja...",
-  "🧪 Cotejando principios activos, dosis y presentaciones exactas...",
-  "📋 Revisando miligramos, comprimidos, cápsulas, jarabes y gotas...",
-  "🔎 Comparando marcas de laboratorio vs. genéricos económicos...",
-  "📊 Calculando el costo por unidad de cada alternativa encontrada...",
-  "⏳ Procesando todas las respuestas en paralelo...",
-  "📈 Cruzando datos de precios entre las 5 cadenas farmacéuticas...",
-  "🏪 Comprobando opciones de compra y retiro o despacho...",
-  "💡 Evaluando cuál es el mix más conveniente para tu bolsillo...",
-  "🎯 Seleccionando los mejores precios para cada medicamento...",
-  "✨ Asignando la estrellita ⭐ al precio más bajo de cada fila...",
-  "🧮 Sumando los totales por farmacia para la receta completa...",
-  "🏆 Ordenando las columnas de la opción más barata a la más cara...",
-  "🎨 Renderizando la tabla comparativa horizontal...",
-  "🔗 Generando enlaces directos para comprar en cada farmacia...",
-  "🚀 Casi listo! Consolidando todos los datos finales...",
-  "🎉 Preparando la comparación definitiva para que ahorres al máximo..."
+// Hitos de búsqueda estructurados y perfectamente sincronizados con el porcentaje
+const SEARCH_MILESTONES = [
+  { minPct: 0,  maxPct: 24, text: "🚀 Conectando y consultando las 5 farmacias de Chile..." },
+  { minPct: 25, maxPct: 54, text: "🔍 Extrayendo precios y stock en tiempo real..." },
+  { minPct: 55, maxPct: 79, text: "✨ Comparando alternativas y buscando las opciones más baratas..." },
+  { minPct: 80, maxPct: 94, text: "🧮 Calculando el total más económico para tu receta completa..." },
+  { minPct: 95, maxPct: 100, text: "🏆 ¡Listo! Consolidando la mejor comparación para tu bolsillo..." }
 ];
 
 let progressInterval = null;
-let stepInterval = null;
 let currentPercent = 0;
+let currentMilestoneIndex = -1;
+
+function updateMilestoneText(pct) {
+  const milestone = SEARCH_MILESTONES.find(m => pct >= m.minPct && pct <= m.maxPct);
+  if (milestone && statusStep.textContent !== milestone.text) {
+    statusStep.style.transition = "opacity 0.20s ease, transform 0.20s ease";
+    statusStep.style.opacity = "0";
+    statusStep.style.transform = "translateY(2px)";
+    setTimeout(() => {
+      statusStep.textContent = milestone.text;
+      statusStep.style.opacity = "1";
+      statusStep.style.transform = "none";
+    }, 180);
+  }
+}
 
 function startWaitingAnimation(query) {
   statusBar.style.display = "flex";
   statusBar.className = "status-bar info";
-  spinner.style.display = "block";
   currentPercent = 0;
+  currentMilestoneIndex = 0;
   
   statusTitle.innerHTML = `Buscando medicamentos... <span class="progress-pct" id="progress-pct">0%</span>`;
+  statusStep.textContent = SEARCH_MILESTONES[0].text;
+  statusStep.style.opacity = "1";
   
   const fillEl = document.getElementById("progress-fill");
   if (fillEl) fillEl.style.width = "0%";
-
-  let stepIndex = 0;
-  statusStep.textContent = DYNAMIC_STEPS[0];
-  statusStep.style.opacity = 1;
 
   if (progressInterval) {
     clearTimeout(progressInterval);
     clearInterval(progressInterval);
   }
-  if (stepInterval) clearInterval(stepInterval);
 
-  // Progreso suave y continuo de 1% en 1% de 0 a 100
+  // Avance coherente de 1 en 1 sincronizado con los hitos reales
   function tickProgress() {
     if (currentPercent >= 98) return;
     currentPercent += 1;
@@ -88,31 +78,25 @@ function startWaitingAnimation(query) {
     const fillEl = document.getElementById("progress-fill");
     if (fillEl) fillEl.style.width = `${currentPercent}%`;
 
-    // Ritmo calibrado: avanza de 1 en 1 de forma fluida
-    let delay = 65; // 0% a 45%: ~3.0s
-    if (currentPercent > 45 && currentPercent <= 75) {
-      delay = 90; // 45% a 75%: ~2.7s
-    } else if (currentPercent > 75 && currentPercent <= 90) {
-      delay = 140; // 75% a 90%: ~2.1s
-    } else if (currentPercent > 90) {
-      delay = 280; // 90% a 98%: ~2.2s
+    // Sincronizar el mensaje del hito correspondiente
+    updateMilestoneText(currentPercent);
+
+    // Ritmo natural y cómodo (total ~7 a 8 segundos)
+    let delay = 60; // 0% a 25%: conexión (~1.5s)
+    if (currentPercent >= 25 && currentPercent < 55) {
+      delay = 75; // 25% a 55%: extracción de datos (~2.2s)
+    } else if (currentPercent >= 55 && currentPercent < 80) {
+      delay = 95; // 55% a 80%: comparación de precios (~2.3s)
+    } else if (currentPercent >= 80 && currentPercent < 95) {
+      delay = 140; // 80% a 95%: cálculo de totales (~2.1s)
+    } else if (currentPercent >= 95) {
+      delay = 300; // 95% a 98%: espera final
     }
 
     progressInterval = setTimeout(tickProgress, delay);
   }
 
-  progressInterval = setTimeout(tickProgress, 50);
-
-  // Rotar textos informativos cada 2.8 segundos (tiempo suficiente para leerlos con calma)
-  stepInterval = setInterval(() => {
-    stepIndex = (stepIndex + 1) % DYNAMIC_STEPS.length;
-    statusStep.style.transition = "opacity 0.25s ease";
-    statusStep.style.opacity = 0;
-    setTimeout(() => {
-      statusStep.textContent = DYNAMIC_STEPS[stepIndex];
-      statusStep.style.opacity = 1;
-    }, 250);
-  }, 2800);
+  progressInterval = setTimeout(tickProgress, 40);
 }
 
 function stopWaitingAnimation() {
@@ -121,19 +105,15 @@ function stopWaitingAnimation() {
     clearInterval(progressInterval);
     progressInterval = null; 
   }
-  if (stepInterval) {
-    clearInterval(stepInterval);
-    stepInterval = null;
-  }
   const pctEl = document.getElementById("progress-pct");
   if (pctEl) pctEl.textContent = "100%";
   const fillEl = document.getElementById("progress-fill");
   if (fillEl) fillEl.style.width = "100%";
+  updateMilestoneText(100);
   
   setTimeout(() => {
-    spinner.style.display = "none";
     statusBar.style.display = "none";
-  }, 200);
+  }, 180);
 }
 
 function showErrorStatus(message) {
