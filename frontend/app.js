@@ -51,6 +51,7 @@ function updateMilestoneText(pct) {
 
 function startWaitingAnimation(query) {
   statusBar.style.display = "flex";
+  if (spinner) spinner.style.display = "block";
   statusBar.className = "status-bar info";
   currentPercent = 0;
   currentMilestoneIndex = 0;
@@ -112,13 +113,15 @@ function stopWaitingAnimation() {
   updateMilestoneText(100);
   
   setTimeout(() => {
-    statusBar.style.display = "none";
+    if (spinner) spinner.style.display = "none";
+  statusBar.style.display = "none";
   }, 180);
 }
 
 function showErrorStatus(message) {
   stopWaitingAnimation();
   statusBar.style.display = "flex";
+  if (spinner) spinner.style.display = "block";
   statusBar.className = "status-bar error";
   statusTitle.textContent = "⚠️ Ocurrió un problema";
   statusStep.textContent = message;
@@ -459,7 +462,8 @@ searchForm.addEventListener("submit", async (e) => {
 
   if (isInstructional || isSentence) {
     showErrorStatus("⚠️ Por favor ingresa nombres de medicamentos válidos separados por coma (ej: paracetamol, omeprazol).");
-    setTimeout(() => { statusBar.style.display = "none"; }, 4000);
+    setTimeout(() => { if (spinner) spinner.style.display = "none";
+  statusBar.style.display = "none"; }, 4000);
     return;
   }
 
@@ -468,7 +472,8 @@ searchForm.addEventListener("submit", async (e) => {
     queryItems = queryItems.slice(0, 10);
     searchInput.value = queryItems.join(", ");
     showErrorStatus("⚠️ Máximo 10 medicamentos por búsqueda. Se tomaron los primeros 10.");
-    setTimeout(() => { statusBar.style.display = "none"; }, 3500);
+    setTimeout(() => { if (spinner) spinner.style.display = "none";
+  statusBar.style.display = "none"; }, 3500);
   }
 
 
