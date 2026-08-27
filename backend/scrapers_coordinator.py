@@ -123,11 +123,9 @@ async def _scrape_page_salcobrand(page, producto: str) -> List[Dict[str, Any]]:
             if (seen.has(cleanHrefKey)) continue;
 
             const card = lk.closest('div[class*="product"], li[class*="product"], div[class*="card"], article') || lk.parentElement;
-            const txt = card ? card.innerText.trim() : (lk.innerText || '').trim();
+            if (!card) continue;
+            const txt = card.innerText.trim();
             if (/agotado|sin\s*stock|no\s*disponible/i.test(txt)) continue;
-
-            const prices = txt.match(/\$\s*[\d\.]+/g);
-            if (!prices || prices.length === 0) continue;
 
             // Extraer nombre descriptivo completo (incluyendo dosis y formato)
             let name = "";
@@ -144,17 +142,46 @@ async def _scrape_page_salcobrand(page, producto: str) -> List[Dict[str, Any]]:
 
             if (!name || name.length < 5) {
                 const lines = txt.split('\n').map(l => l.trim()).filter(l => l && !l.includes('$') && l.length > 5 && !/precio|receta|descuento|formato|retiro|despacho|convenio|fonasa|a[ñn]adir/i.test(l));
-                name = lines.length > 0 ? lines[0] : (card ? card.querySelector('h2, h3')?.innerText.trim() : '');
+                name = lines.length > 0 ? lines[0] : (card.querySelector('h2, h3')?.innerText.trim() || '');
             }
 
             if (name) {
-                seen.add(cleanHrefKey);
-                const cleanPrices = prices.map(p => ({ raw: p.replace(/\s+/g, ''), num: parseInt(p.replace(/[^\d]/g, ''), 10) })).filter(p => !isNaN(p.num) && p.num > 100);
-                cleanPrices.sort((a, b) => a.num - b.num);
-                const bestPrice = cleanPrices.length > 0 ? cleanPrices[0].raw : prices[0].replace(/\s+/g, '');
+                const ignoreEls = card.querySelectorAll('.jss2, .jss7, [class*="unit-price"], [class*="price-per-unit"], [class*="unit_price"], .display-card-price, [class*="card-price"]');
+                ignoreEls.forEach(el => el.setAttribute('data-ignore-price', 'true'));
 
-                const fullHref = href.startsWith('http') ? href : `https://salcobrand.cl${href.startsWith('/') ? '' : '/'}${href}`;
-                results.push({ nombre: name, precio: bestPrice, url: fullHref, fuente: "Salcobrand", disponible: true });
+                const farmaciaSelectors = ['.display-secoundary-price-normal', '.display-secondary-price-normal', '.display-normal-price', '.display-price-normal', '[class*="secoundary"]', '[class*="secondary"]'];
+                const fallbackSelectors = ['.display-offer-price', '.product-prices .price', '.product-prices span:not([data-ignore-price="true"])'];
+                
+                let selectedPrice = null;
+                for (const sel of farmaciaSelectors) {
+                    const el = card.querySelector(sel);
+                    if (el && el.getAttribute('data-ignore-price') !== 'true') {
+                        const m = (el.innerText || '').match(/\$\s*[\d\.]+/);
+                        if (m) { selectedPrice = m[0]; break; }
+                    }
+                }
+                if (!selectedPrice) {
+                    for (const sel of fallbackSelectors) {
+                        const el = card.querySelector(sel);
+                        if (el && el.getAttribute('data-ignore-price') !== 'true') {
+                            const m = (el.innerText || '').match(/\$\s*[\d\.]+/);
+                            if (m) { selectedPrice = m[0]; break; }
+                        }
+                    }
+                }
+                if (!selectedPrice) {
+                    const prices = txt.match(/\$\s*[\d\.]+/g);
+                    if (prices && prices.length > 0) {
+                        selectedPrice = prices[0]; // pick first (usually highest/normal price) instead of lowest to avoid sbpay
+                    }
+                }
+
+                if (selectedPrice) {
+                    seen.add(cleanHrefKey);
+                    selectedPrice = selectedPrice.replace(/\s+/g, '');
+                    const fullHref = href.startsWith('http') ? href : `https://salcobrand.cl${href.startsWith('/') ? '' : '/'}${href}`;
+                    results.push({ nombre: name, precio: selectedPrice, url: fullHref, fuente: "Salcobrand", disponible: true });
+                }
             }
 
         }
