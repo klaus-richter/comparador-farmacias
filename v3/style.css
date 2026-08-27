@@ -212,7 +212,7 @@ body {
 
   border-radius: 12px;
 
-  border: 1.5px solid #10b981;
+  border: 1.5px solid #cbd5e1;
 
   box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
 
@@ -226,9 +226,9 @@ body {
 
 .search-box:focus-within {
 
-  border-color: #10b981;
+  border-color: #2563eb;
 
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 
 }
 
@@ -532,7 +532,7 @@ body {
 
   background: #ffffff;
 
-  border: 1.5px solid #10b981;
+  border: 1.5px solid #cbd5e1;
 
   border-radius: 14px;
 
@@ -1078,7 +1078,7 @@ body {
 
   background: #2563eb;
 
-  border-color: #10b981;
+  border-color: #2563eb;
 
   color: #ffffff;
 
