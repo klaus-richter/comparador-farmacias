@@ -222,7 +222,16 @@ function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
   // TIER 1: Coincidencia directa con la palabra clave o marca buscada
   const exactMatches = items.filter(item => matchProductInteligente(item.nombre, searchProd));
   if (exactMatches.length > 0) {
-    exactMatches.sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
+    exactMatches.sort((a, b) => {
+      const queryHasNumbers = /\d/.test(searchProd);
+      const aHasNumbers = /\d/.test(a.nombre);
+      const bHasNumbers = /\d/.test(b.nombre);
+      if (!queryHasNumbers) {
+        if (aHasNumbers && !bHasNumbers) return 1;
+        if (!aHasNumbers && bHasNumbers) return -1;
+      }
+      return parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio);
+    });
     return exactMatches[0];
   }
 
