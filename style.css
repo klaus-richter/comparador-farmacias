@@ -1757,9 +1757,9 @@ body {
      Ancho de 44.5vw para que se vean 2 tarjetas completas 
      Y la punta de la 3ª tarjeta asomándose a la derecha */
   .pharmacy-column {
-    flex: 0 0 44.5vw !important;
-    min-width: 44.5vw !important;
-    max-width: 44.5vw !important;
+    flex: 0 0 43.5vw !important;
+    min-width: 43.5vw !important;
+    max-width: 43.5vw !important;
     scroll-snap-align: start !important;
     border-radius: 12px !important;
     box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06) !important;
