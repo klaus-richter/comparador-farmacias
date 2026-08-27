@@ -1,3 +1,80 @@
+
+/* --- LOGO OFICIAL ESTILO PROPUESTA 7 --- */
+:root {
+  --verde-vibrante: #10b981;
+  --verde-oscuro: #11382b;
+  --tips-border-verde: #10b981;
+}
+
+.app-top-nav {
+  display: flex;
+  width: 100%;
+  margin-bottom: 20px;
+  justify-content: flex-start;
+}
+
+.logo-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.logo-breaking-bad {
+  font-size: 1.8rem;
+  font-weight: 800;
+  letter-spacing: -1.2px;
+  display: flex;
+  align-items: center;
+  color: var(--verde-oscuro);
+  line-height: 1;
+}
+
+.logo-breaking-bad span {
+  background-color: var(--verde-vibrante);
+  color: #ffffff;
+  padding: 3px 10px;
+  border-radius: 6px;
+  margin-left: 5px;
+}
+
+.pill-container {
+  width: 15px;
+  height: 33px;
+  margin-right: 14px;
+  display: inline-block;
+  position: relative;
+  transform: rotate(135deg); 
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: 1px 2px 4px rgba(0,0,0,0.03);
+  box-sizing: border-box;
+  border: 2.5px solid #111111;
+  border-radius: 20px;
+}
+
+.pill-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 50%;
+  background-color: #ffffff;
+  border-bottom: 2.5px solid #111111;
+  box-sizing: border-box;
+  z-index: 2;
+}
+
+.pill-container::after { 
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 50%; 
+  background-color: var(--verde-vibrante);
+  z-index: 1; 
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -27,6 +104,7 @@ body {
   text-align: center;
   padding: 12px 0 6px;
 }
+
 
 .logo-badge {
   display: inline-block;
@@ -182,11 +260,11 @@ body {
 
 
 .status-bar.info {
-  border-left: 4px solid #3b82f6;
+  border-left: 4px solid #10b981;
 }
 
 .status-bar.error {
-  border-left: 4px solid #ef4444;
+  border-left: 4px solid #10b981;
   background: #fef2f2;
 }
 
