@@ -2156,3 +2156,16 @@ body {
     .desktop-title { display: none !important; }
     .mobile-title { display: block !important; margin: 0 0 24px 0 !important; }
 }
+
+/* --- CORRECCIONES FINALES MOVIL (CACHE BUSTED) --- */
+@media (max-width: 640px) {
+    .app-top-nav {
+        margin-top: 15px !important; /* Bajar el logo */
+    }
+    .logo-breaking-bad {
+        font-size: 1.7rem !important; /* Achicar el logo (antes 2.1) */
+    }
+    .hero-instructions {
+        font-size: 1.04rem !important; /* Mismo tamano que el placeholder del input */
+    }
+}
