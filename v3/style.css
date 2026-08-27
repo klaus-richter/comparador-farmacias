@@ -213,10 +213,10 @@ body {
 }
 
 .tips-title {
-  font-size: 1.08rem;
+  font-size: 1.15rem;
   font-weight: 800;
-  color: #0E6648; /* 👈 Verde oscuro de QUE */
-  margin-bottom: 2px;
+  color: #10b981; /* 👈 Consejos en Verde Claro */
+  margin-bottom: 3px;
 }
 
 .tip-line {
@@ -226,8 +226,8 @@ body {
 }
 
 .tip-line strong {
-  color: #10b981; /* 👈 Verde claro */
-  font-weight: 700;
+  color: #0E6648; /* 👈 Palabras clave en Verde Oscuro de QUE */
+  font-weight: 800; /* 👈 Con Bold */
 }
 
 
