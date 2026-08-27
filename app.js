@@ -495,6 +495,7 @@ searchForm.addEventListener("submit", async (e) => {
   const isMultiple = queryItems.length > 1;
 
   resultsWrapper.style.display = "none";
+  resultsWrapper.classList.remove("visible");
   startWaitingAnimation(rawQuery);
   searchBtn.disabled = true;
   searchBtn.querySelector(".btn-text").textContent = "Comparando...";
@@ -508,9 +509,29 @@ searchForm.addEventListener("submit", async (e) => {
         return await res.json();
       });
     const [data] = await Promise.all([fetchPromise, minWaitPromise]);
-    if (data.status === "ok") { 
-      stopWaitingAnimation(); 
-      renderRecipeComparison(data.receta, queryItems); 
+    if (data.status === "ok") {
+      // 1. Llevar barra al 100% de inmediato
+      const pctEl = document.getElementById("progress-pct");
+      if (pctEl) pctEl.textContent = "100%";
+      const fillEl = document.getElementById("progress-fill");
+      if (fillEl) fillEl.style.width = "100%";
+
+      // 2. Transición suave de salida de la barra (fade out)
+      statusBar.style.opacity = "0";
+      statusBar.style.transform = "translateY(-4px)";
+
+      setTimeout(() => {
+        stopWaitingAnimation();
+        statusBar.style.opacity = "1";
+        statusBar.style.transform = "none";
+
+        // 3. Renderizar resultados con fade in fluido
+        renderRecipeComparison(data.receta, queryItems);
+        resultsWrapper.style.display = "flex";
+        requestAnimationFrame(() => {
+          resultsWrapper.classList.add("visible");
+        });
+      }, 160);
     }
   } catch (err) {
     showErrorStatus(`Error conectando con el backend: ${err.message}`);
