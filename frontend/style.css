@@ -215,8 +215,7 @@ body {
 .tips-title {
   font-size: 1.08rem;
   font-weight: 800;
-  color: #10b981;
-  letter-spacing: 0.03em;
+  color: #0E6648; /* 👈 Verde oscuro de QUE */
   margin-bottom: 2px;
 }
 
@@ -227,8 +226,8 @@ body {
 }
 
 .tip-line strong {
-  color: #000000;
-  font-weight: 800;
+  color: #10b981; /* 👈 Verde claro */
+  font-weight: 700;
 }
 
 
