@@ -1870,8 +1870,7 @@ body {
     font-weight: 900 !important;
   }
 
-  .hero-instructions {
-    font-size: 1.05rem !important;
+  .hero-instructions { font-size: 1.10rem !important;
     margin-top: 3px !important;
     margin-bottom: 6px !important;
     color: #475569 !important;
@@ -1927,4 +1926,35 @@ body {
     font-weight: 800 !important;
     border-radius: 9px !important;
   }
+}
+
+/* Banner elegante en 1 sola línea para búsquedas sin resultados */
+.empty-search-alert {
+  background: #fff7ed !important;
+  border: 1.5px solid #fed7aa !important;
+  border-radius: 10px !important;
+  padding: 10px 14px !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+  max-width: 620px !important;
+  margin: 12px auto !important;
+  box-shadow: 0 2px 8px rgba(234, 88, 12, 0.06) !important;
+  box-sizing: border-box !important;
+}
+
+.empty-alert-icon {
+  font-size: 1.15rem !important;
+  line-height: 1 !important;
+  flex-shrink: 0 !important;
+}
+
+.empty-alert-text {
+  font-size: 0.90rem !important;
+  font-weight: 700 !important;
+  color: #9a3412 !important;
+  line-height: 1.25 !important;
 }
