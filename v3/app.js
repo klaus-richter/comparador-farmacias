@@ -22,106 +22,107 @@ const ALL_PHARMACIES = [
   "Ecofarmacias"
 ];
 
-// Hitos de búsqueda estructurados y perfectamente sincronizados con el porcentaje
-const SEARCH_MILESTONES = [
-  { minPct: 0,  maxPct: 24, text: "🚀 Conectando y consultando las 5 farmacias de Chile..." },
-  { minPct: 25, maxPct: 54, text: "🔍 Extrayendo precios y stock en tiempo real..." },
-  { minPct: 55, maxPct: 79, text: "✨ Comparando alternativas y buscando las opciones más baratas..." },
-  { minPct: 80, maxPct: 94, text: "🧮 Calculando el total más económico para tu receta completa..." },
-  { minPct: 95, maxPct: 100, text: "🏆 ¡Listo! Consolidando la mejor comparación para tu bolsillo..." }
+// Mensajes variados, calmantes y descriptivos con emojis
+const DYNAMIC_STEPS = [
+  "🚀 Conectando de forma segura con las 5 farmacias más grandes de Chile...",
+  "🔍 Consultando inventarios en Cruz Verde, Salcobrand, Ahumada, Dr. Simi y Ecofarmacias...",
+  "💊 Conectando con los servidores de Farmacias Ahumada...",
+  "🛒 Verificando promociones y ofertas vigentes en Salcobrand...",
+  "⚡ Extrayendo disponibilidad inmediata en Cruz Verde...",
+  "🧑‍⚕️ Buscando opciones genéricas y bioequivalentes en Dr. Simi...",
+  "🌿 Consultando la base de datos de Ecofarmacias en tiempo real...",
+  "📦 Verificando stock en farmacias online y centros de distribución...",
+  "💰 Detectando descuentos automáticos y precios rebajados...",
+  "🏷️ Identificando si hay convenios o formatos económicos por caja...",
+  "🧪 Cotejando principios activos, dosis y presentaciones exactas...",
+  "📋 Revisando miligramos, comprimidos, cápsulas, jarabes y gotas...",
+  "🔎 Comparando marcas de laboratorio vs. genéricos económicos...",
+  "📊 Calculando el costo por unidad de cada alternativa encontrada...",
+  "⏳ Procesando todas las respuestas en paralelo...",
+  "📈 Cruzando datos de precios entre las 5 cadenas farmacéuticas...",
+  "🏪 Comprobando opciones de compra y retiro o despacho...",
+  "💡 Evaluando cuál es el mix más conveniente para tu bolsillo...",
+  "🎯 Seleccionando los mejores precios para cada medicamento...",
+  "✨ Asignando la estrellita ⭐ al precio más bajo de cada fila...",
+  "🧮 Sumando los totales por farmacia para la receta completa...",
+  "🏆 Ordenando las columnas de la opción más barata a la más cara...",
+  "🎨 Renderizando la tabla comparativa horizontal...",
+  "🔗 Generando enlaces directos para comprar en cada farmacia...",
+  "🚀 Casi listo! Consolidando todos los datos finales...",
+  "🎉 Preparando la comparación definitiva para que ahorres al máximo..."
 ];
 
 let progressInterval = null;
+let stepInterval = null;
 let currentPercent = 0;
-let currentMilestoneIndex = -1;
-
-function updateMilestoneText(pct) {
-  const milestone = SEARCH_MILESTONES.find(m => pct >= m.minPct && pct <= m.maxPct);
-  if (milestone && statusStep.textContent !== milestone.text) {
-    statusStep.style.transition = "opacity 0.20s ease, transform 0.20s ease";
-    statusStep.style.opacity = "0";
-    statusStep.style.transform = "translateY(2px)";
-    setTimeout(() => {
-      statusStep.textContent = milestone.text;
-      statusStep.style.opacity = "1";
-      statusStep.style.transform = "none";
-    }, 180);
-  }
-}
 
 function startWaitingAnimation(query) {
   statusBar.style.display = "flex";
-  if (spinner) spinner.style.display = "block";
   statusBar.className = "status-bar info";
-  currentPercent = 0;
-  currentMilestoneIndex = 0;
+  spinner.style.display = "block";
+  currentPercent = 15;
   
-  statusTitle.innerHTML = `Buscando medicamentos... <span class="progress-pct" id="progress-pct">0%</span>`;
-  statusStep.textContent = SEARCH_MILESTONES[0].text;
-  statusStep.style.opacity = "1";
+  statusTitle.innerHTML = `Buscando medicamentos... <span class="progress-pct" id="progress-pct">15%</span>`;
   
   const fillEl = document.getElementById("progress-fill");
-  if (fillEl) fillEl.style.width = "0%";
+  if (fillEl) fillEl.style.width = "15%";
 
-  if (progressInterval) {
-    clearTimeout(progressInterval);
-    clearInterval(progressInterval);
-  }
+  let stepIndex = 0;
+  statusStep.textContent = DYNAMIC_STEPS[0];
+  statusStep.style.opacity = 1;
 
-  // Avance coherente de 1 en 1 sincronizado con los hitos reales
-  function tickProgress() {
-    if (currentPercent >= 98) return;
-    currentPercent += 1;
+  if (progressInterval) clearInterval(progressInterval);
+  if (stepInterval) clearInterval(stepInterval);
+
+  // Progreso dinámico y rápido calibrado a los nuevos tiempos (avanza cada 200ms)
+  progressInterval = setInterval(() => {
+    if (currentPercent < 50) {
+      currentPercent += Math.floor(Math.random() * 5) + 4; // Rápido al inicio
+    } else if (currentPercent < 80) {
+      currentPercent += Math.floor(Math.random() * 4) + 2; // Medio
+    } else if (currentPercent < 95) {
+      currentPercent += Math.floor(Math.random() * 2) + 1; // Suave hacia el 95%
+    }
+    if (currentPercent > 95) currentPercent = 95;
 
     const pctEl = document.getElementById("progress-pct");
     if (pctEl) pctEl.textContent = `${currentPercent}%`;
 
     const fillEl = document.getElementById("progress-fill");
     if (fillEl) fillEl.style.width = `${currentPercent}%`;
+  }, 220);
 
-    // Sincronizar el mensaje del hito correspondiente
-    updateMilestoneText(currentPercent);
-
-    // Ritmo natural y cómodo (total ~7 a 8 segundos)
-    let delay = 60; // 0% a 25%: conexión (~1.5s)
-    if (currentPercent >= 25 && currentPercent < 55) {
-      delay = 75; // 25% a 55%: extracción de datos (~2.2s)
-    } else if (currentPercent >= 55 && currentPercent < 80) {
-      delay = 95; // 55% a 80%: comparación de precios (~2.3s)
-    } else if (currentPercent >= 80 && currentPercent < 95) {
-      delay = 140; // 80% a 95%: cálculo de totales (~2.1s)
-    } else if (currentPercent >= 95) {
-      delay = 300; // 95% a 98%: espera final
-    }
-
-    progressInterval = setTimeout(tickProgress, delay);
-  }
-
-  progressInterval = setTimeout(tickProgress, 40);
+  // Rotar textos informativos cada 1.3 segundos
+  stepInterval = setInterval(() => {
+    stepIndex = (stepIndex + 1) % DYNAMIC_STEPS.length;
+    statusStep.style.opacity = 0;
+    setTimeout(() => {
+      statusStep.textContent = DYNAMIC_STEPS[stepIndex];
+      statusStep.style.opacity = 1;
+    }, 150);
+  }, 1300);
 }
 
 function stopWaitingAnimation() {
   if (progressInterval) { 
-    clearTimeout(progressInterval); 
-    clearInterval(progressInterval);
+    clearInterval(progressInterval); 
     progressInterval = null; 
+  }
+  if (stepInterval) {
+    clearInterval(stepInterval);
+    stepInterval = null;
   }
   const pctEl = document.getElementById("progress-pct");
   if (pctEl) pctEl.textContent = "100%";
   const fillEl = document.getElementById("progress-fill");
   if (fillEl) fillEl.style.width = "100%";
-  updateMilestoneText(100);
-  
-  setTimeout(() => {
-    if (spinner) spinner.style.display = "none";
+  spinner.style.display = "none";
   statusBar.style.display = "none";
-  }, 180);
 }
 
 function showErrorStatus(message) {
   stopWaitingAnimation();
   statusBar.style.display = "flex";
-  if (spinner) spinner.style.display = "block";
   statusBar.className = "status-bar error";
   statusTitle.textContent = "⚠️ Ocurrió un problema";
   statusStep.textContent = message;
@@ -462,8 +463,7 @@ searchForm.addEventListener("submit", async (e) => {
 
   if (isInstructional || isSentence) {
     showErrorStatus("⚠️ Por favor ingresa nombres de medicamentos válidos separados por coma (ej: paracetamol, omeprazol).");
-    setTimeout(() => { if (spinner) spinner.style.display = "none";
-  statusBar.style.display = "none"; }, 4000);
+    setTimeout(() => { statusBar.style.display = "none"; }, 4000);
     return;
   }
 
@@ -472,15 +472,13 @@ searchForm.addEventListener("submit", async (e) => {
     queryItems = queryItems.slice(0, 10);
     searchInput.value = queryItems.join(", ");
     showErrorStatus("⚠️ Máximo 10 medicamentos por búsqueda. Se tomaron los primeros 10.");
-    setTimeout(() => { if (spinner) spinner.style.display = "none";
-  statusBar.style.display = "none"; }, 3500);
+    setTimeout(() => { statusBar.style.display = "none"; }, 3500);
   }
 
 
   const isMultiple = queryItems.length > 1;
 
   resultsWrapper.style.display = "none";
-  resultsWrapper.classList.remove("visible");
   startWaitingAnimation(rawQuery);
   searchBtn.disabled = true;
   searchBtn.querySelector(".btn-text").textContent = "Comparando...";
@@ -494,35 +492,15 @@ searchForm.addEventListener("submit", async (e) => {
         return await res.json();
       });
     const [data] = await Promise.all([fetchPromise, minWaitPromise]);
-    if (data.status === "ok") {
-      // 1. Llevar barra al 100% de inmediato
-      const pctEl = document.getElementById("progress-pct");
-      if (pctEl) pctEl.textContent = "100%";
-      const fillEl = document.getElementById("progress-fill");
-      if (fillEl) fillEl.style.width = "100%";
-
-      // 2. Transición suave de salida de la barra (fade out)
-      statusBar.style.opacity = "0";
-      statusBar.style.transform = "translateY(-4px)";
-
-      setTimeout(() => {
-        stopWaitingAnimation();
-        statusBar.style.opacity = "1";
-        statusBar.style.transform = "none";
-
-        // 3. Renderizar resultados con fade in fluido
-        renderRecipeComparison(data.receta, queryItems);
-        resultsWrapper.style.display = "flex";
-        requestAnimationFrame(() => {
-          resultsWrapper.classList.add("visible");
-        });
-      }, 160);
+    if (data.status === "ok") { 
+      stopWaitingAnimation(); 
+      renderRecipeComparison(data.receta, queryItems); 
     }
   } catch (err) {
     showErrorStatus(`Error conectando con el backend: ${err.message}`);
   } finally {
     searchBtn.disabled = false;
-    searchBtn.querySelector(".btn-text").textContent = "Buscar Precios";
+    searchBtn.querySelector(".btn-text").textContent = "Comparar Farmacias";
   }
 });
 
