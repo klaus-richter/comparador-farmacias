@@ -151,17 +151,11 @@ def cache_status():
 @app.post("/api/nightly/update")
 @app.get("/api/nightly/update")
 async def trigger_daily_sync():
-
-    """Endpoint para activar la actualización nocturna a las 3:00 AM (desde Cloud Scheduler o Cron)."""
-    try:
-        from backend.scripts.daily_updater import run_daily_update
-        asyncio.create_task(run_daily_update())
-        return {
-            "status": "ok",
-            "message": "🌙 Actualización nocturna iniciada exitosamente en segundo plano con protección anti-bot."
-        }
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
+    """⛔ DESACTIVADO: Scraping masivo sin proxies residenciales quema la IP de Google Cloud."""
+    return {
+        "status": "disabled",
+        "message": "⛔ Sync nocturno desactivado hasta integrar proxies residenciales. Sin proxies = ban de Cloudflare."
+    }
 
 
 @app.post("/api/cache/clean")
@@ -378,13 +372,8 @@ def get_metrics_dashboard():
 @app.post("/api/admin/qa-audit")
 @app.get("/api/admin/qa-audit")
 async def trigger_qa_audit():
-    """Ejecuta la auditoría nocturna de 10 medicamentos 100% al azar y auto-repara la caché."""
-    try:
-        from backend.qa_watchdog import run_random_qa_audit
-        asyncio.create_task(run_random_qa_audit(10))
-        return {
-            "status": "ok",
-            "message": "🛡️ Auditoría QA con 10 medicamentos al azar iniciada en segundo plano con auto-reparación de caché."
-        }
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
+    """⛔ DESACTIVADO: QA audit sin proxies residenciales quema la IP de Google Cloud."""
+    return {
+        "status": "disabled",
+        "message": "⛔ QA audit desactivado hasta integrar proxies residenciales."
+    }
