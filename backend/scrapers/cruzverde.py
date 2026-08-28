@@ -4,7 +4,7 @@ from playwright.async_api import async_playwright, TimeoutError as PlaywrightTim
 
 BASE_URL = "https://www.cruzverde.cl"
 
-async def buscar_cruzverde(producto: str, max_resultados: int = 5) -> list[dict]:
+async def buscar_cruzverde(producto: str, max_resultados: int = 20) -> list[dict]:
     """
     Busca un producto en Farmacias Cruz Verde.
     1. Extrae productos desde la vista de búsqueda (fast path si la card tiene precio).
