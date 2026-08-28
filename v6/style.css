@@ -1441,79 +1441,29 @@ body {
 .rank-badge {
   font-size: 0.78rem;
   font-weight: 800;
-  padding: 4px 8px;
-  line-height: 1.15;
+  min-width: 32px;
+  height: 24px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  line-height: 1;
   border-radius: 8px;
   text-transform: uppercase;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  max-width: 100px;
+  text-align: center;
 }
-
-
-
-
-
-
 
 .rank-winner {
-
-
-
   background: #059669;
-
-
-
   color: #ffffff;
-
-
-
-  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.3);
-
-
-
-  text-align: center;
-
-
-
-  font-size: 0.78rem;
-
-
-
-  padding: 4px 8px;
-
-
-
-  line-height: 1.15;
-
-
-
-  max-width: 100px;
-
-
-
+  box-shadow: 0 2px 5px rgba(5, 150, 105, 0.25);
 }
 
-
-
-
-
-
-
 .rank-other {
-
-
-
   background: #e2e8f0;
-
-
-
   color: #475569;
-
-
-
 }
 
 
