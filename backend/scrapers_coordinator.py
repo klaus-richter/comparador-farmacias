@@ -94,7 +94,7 @@ async def _scrape_page_ahumada(page, producto: str) -> List[Dict[str, Any]]:
                 }
             }
         }
-        return results.slice(0, 6);
+        return results.slice(0, 20);
     }""")
     return items
 
@@ -157,7 +157,7 @@ async def _scrape_page_salcobrand(page, producto: str) -> List[Dict[str, Any]]:
             }
 
         }
-        return results.slice(0, 6);
+        return results.slice(0, 20);
     }""")
     return items
 
@@ -167,7 +167,7 @@ async def _fetch_drsimi_vtex(producto: str) -> List[Dict[str, Any]]:
     """Consulta directa a la API REST de catálogo VTEX de Dr. Simi (0 Chromium, ~0.4s)."""
     import urllib.parse
     q_encoded = urllib.parse.quote(producto)
-    url = f"https://www.drsimi.cl/api/catalog_system/pub/products/search?ft={q_encoded}&_from=0&_to=6"
+    url = f"https://www.drsimi.cl/api/catalog_system/pub/products/search?ft={q_encoded}&_from=0&_to=19"
     
     def _do_get():
         import urllib.request, json
@@ -285,7 +285,7 @@ async def _scrape_page_cruzverde(page, producto: str) -> List[Dict[str, Any]]:
             const fullHref = href.startsWith('http') ? href : `https://www.cruzverde.cl${href}`;
             results.push({ nombre: name, precio: cleanPrice, url: fullHref, fuente: "Cruz Verde", disponible: true });
         }
-        return results.slice(0, 6);
+        return results.slice(0, 20);
     }"""
 
     items = await page.evaluate(CV_EVAL)
