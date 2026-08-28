@@ -60,7 +60,7 @@ async def rate_limit_middleware(request: Request, call_next):
                     content={
                         "status": "error",
                         "code": "IP_BLOCKED_1H",
-                        "detail": "Has superado el límite de consultas permitidas. Espera 1 hora para volver a intentar desde este dispositivo."
+                        "detail": "Has superado el límite de consultas permitidas. Espera 1 hora para volver a intentar."
                     }
                 )
             else:
@@ -79,7 +79,7 @@ async def rate_limit_middleware(request: Request, call_next):
                 content={
                     "status": "error",
                     "code": "RATE_LIMIT_MINUTE",
-                    "detail": "Has superado el límite de 10 consultas por minuto. Espera 1 hora para volver a intentar desde este dispositivo."
+                    "detail": "Has superado el límite de 10 consultas por minuto. Espera 1 hora para volver a intentar."
                 }
             )
 
@@ -91,7 +91,7 @@ async def rate_limit_middleware(request: Request, call_next):
                 content={
                     "status": "error",
                     "code": "RATE_LIMIT_HOUR",
-                    "detail": "Has superado el límite de 20 consultas por hora. Espera 1 hora para volver a intentar desde este dispositivo."
+                    "detail": "Has superado el límite de 20 consultas por hora. Espera 1 hora para volver a intentar."
                 }
             )
 
