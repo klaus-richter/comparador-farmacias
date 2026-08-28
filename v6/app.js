@@ -627,7 +627,10 @@ searchForm.addEventListener("submit", async (e) => {
   try {
     const fetchPromise = fetch(`${API}/api/buscar-receta?q=${encodeURIComponent(queryItems.join(","))}`)
       .then(async res => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.detail || `Error del servidor (HTTP ${res.status})`);
+        }
         return await res.json();
       });
     const [data] = await Promise.all([fetchPromise, minWaitPromise]);
@@ -636,7 +639,8 @@ searchForm.addEventListener("submit", async (e) => {
       renderRecipeComparison(data.receta, queryItems); 
     }
   } catch (err) {
-    showErrorStatus(`Error conectando con el backend: ${err.message}`);
+    stopWaitingAnimation();
+    showSearchBannerAlert(err.message.replace(/^Error:\s*/i, ""));
   } finally {
     searchBtn.disabled = false;
     searchBtn.querySelector(".btn-text").textContent = "Comparar Farmacias";
