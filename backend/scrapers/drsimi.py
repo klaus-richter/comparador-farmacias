@@ -3,7 +3,7 @@ from playwright.async_api import async_playwright, TimeoutError as PlaywrightTim
 
 BASE_URL = "https://www.drsimi.cl"
 
-async def buscar_drsimi(producto: str, max_resultados: int = 6) -> list[dict]:
+async def buscar_drsimi(producto: str, max_resultados: int = 20) -> list[dict]:
     """
     Busca un producto en Farmacias del Dr. Simi (VTEX).
     """
