@@ -9,7 +9,7 @@ HEADERS = {
     "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 }
 
-async def buscar_ecofarmacias(producto: str, max_resultados: int = 6) -> list[dict]:
+async def buscar_ecofarmacias(producto: str, max_resultados: int = 20) -> list[dict]:
     """
     Busca productos en Ecofarmacias a través de su API Meilisearch directa.
     Ultra rápido (~0.1s).
@@ -33,7 +33,10 @@ async def buscar_ecofarmacias(producto: str, max_resultados: int = 6) -> list[di
                 in_stock = hit.get("in_stock")
                 stock_order = hit.get("stock_order")
                 stock_qty = hit.get("stock_qty")
-                if in_stock in (False, 0, "false") or stock_order == 0 or (stock_qty is not None and stock_qty <= 0):
+                name_lower = (hit.get("name") or "").lower()
+                if in_stock in (False, 0, "false") or stock_order == 0 or (stock_qty is not None and stock_qty <= 0) or any(d in name_lower for d in ["caja dañada", "caja arrugada", "dañada", "arrugada", "vencimiento"]):
+                    continue
+                if in_stock in (False, 0, "false"):
                     continue
 
 
