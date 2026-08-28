@@ -2539,8 +2539,41 @@ const ISPEngineClient = {
       }
     }
 
-    // 3. MATCH INCLUSIVO (Sin restricciones de listas cerradas)
-    return true;
+    // 3. CANDADO DE MARCA VS PRINCIPIO ACTIVO
+    if (qTokens.length > 0) {
+      const firstWord = qTokens[0];
+      let isActiveIngredient = false;
+      
+      if (typeof ISP_DATA !== 'undefined' && ISP_DATA.principios_activos) {
+        const paKeys = Object.keys(ISP_DATA.principios_activos);
+        if (paKeys.some(pa => pa.includes(firstWord) || firstWord.includes(pa))) {
+          isActiveIngredient = true;
+        }
+      }
+
+      // Si no es un principio activo conocido, asumimos que es una MARCA especifica.
+      // En ese caso, exigimos que el nombre del producto contenga la marca buscada.
+      if (!isActiveIngredient) {
+        if (!normProd.includes(firstWord)) {
+          return false;
+        }
+      }
+    }
+
+    // 3.5 CANDADO DE APELLIDOS OBLIGATORIOS
+      const IMPORTANT_MODIFIERS = ['infantil', 'pediatrico', 'pediátrico', 'jarabe', 'gotas', 'suspension', 'supositorios', 'fol', 'forte', 'plus', 'sr', 'xr', 'lp', 'cd', 'ap', 'dia', 'noche', 'mujer', 'hombre'];
+      const requestedModifiers = qTokens.filter(tok => IMPORTANT_MODIFIERS.includes(tok));
+      if (requestedModifiers.length > 0) {
+        const prodWords = normProd.split(/\s+/);
+        for (const mod of requestedModifiers) {
+           if (!prodWords.includes(mod) && !normProd.includes(mod)) {
+              return false;
+           }
+        }
+      }
+
+      // 4. MATCH INCLUSIVO (Sin restricciones de listas cerradas)
+      return true;
   }
 };
 
