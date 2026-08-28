@@ -1,5 +1,7 @@
 // Configuración de API (soporta local y despliegue en Google Cloud Run para GitHub Pages)
-const API = "https://comparador-backend-201153254876.us-central1.run.app";
+const API = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" 
+    ? "http://localhost:8000" 
+    : "https://comparador-backend-201153254876.us-central1.run.app";
 
 
 const statusBar = document.getElementById("status-bar");
@@ -74,7 +76,7 @@ function startWaitingAnimation(query) {
   if (progressInterval) clearInterval(progressInterval);
   if (stepInterval) clearInterval(stepInterval);
 
-  // Progreso dinámico y rápido calibrado a los nuevos tiempos (avanza cada 200ms)
+  // Progreso dinámico y rápido calibrado a los nuevos tiempos (avanza cada 450ms)
   progressInterval = setInterval(() => {
     if (currentPercent < 50) {
       currentPercent += Math.floor(Math.random() * 5) + 4; // Rápido al inicio
@@ -90,9 +92,9 @@ function startWaitingAnimation(query) {
 
     const fillEl = document.getElementById("progress-fill");
     if (fillEl) fillEl.style.width = `${currentPercent}%`;
-  }, 220);
+  }, 450);
 
-  // Rotar textos informativos cada 1.3 segundos
+  // Rotar textos informativos cada 2.8 segundos
   stepInterval = setInterval(() => {
     stepIndex = (stepIndex + 1) % DYNAMIC_STEPS.length;
     statusStep.style.opacity = 0;
@@ -100,7 +102,7 @@ function startWaitingAnimation(query) {
       statusStep.textContent = DYNAMIC_STEPS[stepIndex];
       statusStep.style.opacity = 1;
     }, 150);
-  }, 1300);
+  }, 2800);
 }
 
 function stopWaitingAnimation() {
@@ -177,13 +179,12 @@ function normalizeSearchText(text) {
 }
 
 function matchProductInteligente(prodName, searchQuery) {
-  // 1. Usar motor semántico del ISP si está disponible en ventana
+  // 1. Usar motor semántico del ISP como fuente ÚNICA de verdad si está disponible
   if (typeof window !== "undefined" && window.ISPEngine) {
-    const isMatch = window.ISPEngine.matchProductAgainstQuery(prodName, searchQuery);
-    if (isMatch) return true;
+    return window.ISPEngine.matchProductAgainstQuery(prodName, searchQuery);
   }
 
-  // 2. Fallback heurístico léxico
+  // 2. Fallback heurístico léxico (SOLO si el motor no cargó por algún motivo)
   const normProd = normalizeSearchText(prodName);
   const normQuery = normalizeSearchText(searchQuery);
 
@@ -215,34 +216,80 @@ function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
   // 1. Filtrar productos de esta farmacia con precio válido
   const items = (allResults || [])
     .filter(item => matchPharmacy(item.fuente, targetPharmacy))
-    .filter(item => parsePriceToNumber(item.precio) !== Infinity);
+    .filter(item => parsePriceToNumber(item.precio) !== Infinity)
+    .sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
 
   if (items.length === 0) return null;
 
-  // TIER 1: Coincidencia directa con la palabra clave o marca buscada
+  // TIER 1: Coincidencia inteligente usando el motor del ISP
   const exactMatches = items.filter(item => matchProductInteligente(item.nombre, searchProd));
   if (exactMatches.length > 0) {
-    exactMatches.sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
+    exactMatches.sort((a, b) => {
+      const normQ = normalizeSearchText(searchProd).split(/\s+/);
+
+      // Penalizacion Inteligente de "Apellidos" y Variantes
+      if (normQ.length > 0) {
+        const firstWord = normQ[0];
+        let isPA = false;
+        if (typeof ISP_DATA !== 'undefined' && ISP_DATA.principios_activos) {
+           const paKeys = Object.keys(ISP_DATA.principios_activos);
+           if (paKeys.some(pa => pa.includes(firstWord) || firstWord.includes(pa))) {
+              isPA = true;
+           }
+        }
+        
+        const UNWANTED_MODIFIERS = ['infantil', 'pediatrico', 'pediátrico', 'jarabe', 'gotas', 'suspension', 'supositorios', 'fol', 'forte', 'plus', 'sr', 'xr', 'lp', 'cd', 'ap', 'd', 'c', 'dia', 'noche', 'mujer', 'hombre'];
+        const ignoreList = ['mg', 'mcg', 'g', 'ml', 'ui', 'u', 'comp', 'comprimidos', 'capsulas', 'grageas', 'jeringas', 'ampollas', 'sobres', 'x', 'cm', 'l', 'recubiertos', 'recubierto'];
+        
+        const getPenaltyScore = (prodName) => {
+           let penalty = 0;
+           const words = normalizeSearchText(prodName).split(/\s+/);
+           
+           words.forEach(w => {
+             if (normQ.includes(w)) return; // Si el usuario lo pidio explicitamente, no hay penalidad
+             if (ignoreList.includes(w)) return; // Ignorar unidades de medida y palabras irrelevantes
+             
+             // Castigo severo para modificadores que cambian el tipo de droga/paciente (Aplica transversal a TODO)
+             if (UNWANTED_MODIFIERS.includes(w)) {
+                penalty += 100000;
+             } else if (!isPA) {
+               // Si NO es un principio activo, somos muuuy celosos con las variantes raras.
+               if (/^\d+$/.test(w)) penalty += 20000;
+               else penalty += 50000;
+             }
+           });
+           return penalty;
+        };
+
+        const scoreA = getPenaltyScore(a.nombre);
+        const scoreB = getPenaltyScore(b.nombre);
+
+        if (scoreA !== scoreB) {
+           return scoreA - scoreB;
+        }
+      }
+      return parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio);
+    });
     return exactMatches[0];
   }
 
-  // TIER 2: Fallback Inteligente cuando se busca por Principio Activo (ej: rupatadina en Ahumada que solo titula como Rupax/Rexanel)
+  // TIER 2: Fallback Inteligente. ÚNICA y EXCLUSIVAMENTE para relajar restricciones de nombre, PERO respetando dosis estrictamente.
   const normQuery = normalizeSearchText(searchProd);
   const queryNums = normQuery.split(/\s+/).filter(tok => /^\d+$/.test(tok));
   
-  let fallbackCandidates = items;
   if (queryNums.length > 0) {
     const doseMatches = items.filter(item => {
       const prodNums = normalizeSearchText(item.nombre).match(/\b\d+\b/g) || [];
       return queryNums.some(num => prodNums.includes(num));
     });
     if (doseMatches.length > 0) {
-      fallbackCandidates = doseMatches;
+      doseMatches.sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
+      return doseMatches[0];
     }
   }
 
-  fallbackCandidates.sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
-  return fallbackCandidates[0];
+  // Si no hay coincidencias exactas, ni coincidencias de dosis, NO mostramos basura.
+  return null;
 }
 
 
