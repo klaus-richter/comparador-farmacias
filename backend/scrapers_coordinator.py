@@ -399,25 +399,47 @@ async def scrapear_todas_las_farmacias(producto: str, max_retries: int = 1) -> D
     }
 
 async def scrapear_farmacias_especificas(producto: str, nombres_farmacias: List[str], max_retries: int = 1) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
-    """Auto-Healing ultrarrápido para farmacias puntuales."""
-    t0 = time.time()
-    browser = await get_shared_browser()
-    context = await browser.new_context(
-        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36",
-        viewport={"width": 1280, "height": 800}
-    )
+    """Auto-Healing ultrarrápido para farmacias puntuales que faltan o tienen 0 productos en caché."""
+    tasks = []
+    
+    # 1. Farmacias directas por API (0 Chromium, <0.3s)
+    if any("eco" in n.lower() for n in nombres_farmacias):
+        async def _run_eco():
+            try:
+                items = await buscar_ecofarmacias(producto)
+                return "Ecofarmacias", items, {"status": "OK" if items else "SIN_STOCK", "total": len(items)}
+            except Exception as e:
+                return "Ecofarmacias", [], {"status": "ERROR", "error": str(e), "total": 0}
+        tasks.append(_run_eco())
 
-    mapping = {
+    if any("simi" in n.lower() for n in nombres_farmacias):
+        async def _run_simi():
+            try:
+                items = await _fetch_drsimi_vtex(producto)
+                return "Dr. Simi", items, {"status": "OK" if items else "SIN_STOCK", "total": len(items)}
+            except Exception as e:
+                return "Dr. Simi", [], {"status": "ERROR", "error": str(e), "total": 0}
+        tasks.append(_run_simi())
+
+    # 2. Farmacias por Chromium
+    browser_mapping = {
         "Farmacias Ahumada": _scrape_page_ahumada,
         "Salcobrand": _scrape_page_salcobrand,
-        "Dr. Simi": _scrape_page_drsimi,
         "Cruz Verde": _scrape_page_cruzverde
     }
 
-    tasks = []
-    for nombre, fn in mapping.items():
-        if any(n.lower() in nombre.lower() or nombre.lower() in n.lower() for n in nombres_farmacias):
-            async def _run(n=nombre, f=fn):
+    needed_browser = [(nombre, fn) for nombre, fn in browser_mapping.items() if any(n.lower() in nombre.lower() or nombre.lower() in n.lower() for n in nombres_farmacias)]
+
+    context = None
+    if needed_browser:
+        browser = await get_shared_browser()
+        context = await browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36",
+            viewport={"width": 1280, "height": 800}
+        )
+
+        for nombre, fn in needed_browser:
+            async def _run_b(n=nombre, f=fn):
                 try:
                     page = await context.new_page()
                     try:
@@ -427,14 +449,15 @@ async def scrapear_farmacias_especificas(producto: str, nombres_farmacias: List[
                         await page.close()
                 except Exception as e:
                     return n, [], {"status": "ERROR", "error": str(e), "total": 0}
-            tasks.append(_run())
+            tasks.append(_run_b())
 
     if not tasks:
-        await context.close()
         return [], {}
 
     respuestas = await asyncio.gather(*tasks)
-    await context.close()
+    
+    if context:
+        await context.close()
 
     nuevos_items = []
     nuevo_reporte = {}
