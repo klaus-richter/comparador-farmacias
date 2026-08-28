@@ -177,13 +177,12 @@ function normalizeSearchText(text) {
 }
 
 function matchProductInteligente(prodName, searchQuery) {
-  // 1. Usar motor semántico del ISP si está disponible en ventana
+  // 1. Usar motor semántico del ISP como fuente ÚNICA de verdad si está disponible
   if (typeof window !== "undefined" && window.ISPEngine) {
-    const isMatch = window.ISPEngine.matchProductAgainstQuery(prodName, searchQuery);
-    if (isMatch) return true;
+    return window.ISPEngine.matchProductAgainstQuery(prodName, searchQuery);
   }
 
-  // 2. Fallback heurístico léxico
+  // 2. Fallback heurístico léxico (SOLO si el motor no cargó por algún motivo)
   const normProd = normalizeSearchText(prodName);
   const normQuery = normalizeSearchText(searchQuery);
 
@@ -215,11 +214,12 @@ function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
   // 1. Filtrar productos de esta farmacia con precio válido
   const items = (allResults || [])
     .filter(item => matchPharmacy(item.fuente, targetPharmacy))
-    .filter(item => parsePriceToNumber(item.precio) !== Infinity);
+    .filter(item => parsePriceToNumber(item.precio) !== Infinity)
+    .sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
 
   if (items.length === 0) return null;
 
-  // TIER 1: Coincidencia directa con la palabra clave o marca buscada
+  // TIER 1: Coincidencia inteligente usando el motor del ISP
   const exactMatches = items.filter(item => matchProductInteligente(item.nombre, searchProd));
   if (exactMatches.length > 0) {
     exactMatches.sort((a, b) => {
@@ -249,48 +249,45 @@ function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
              
              // Castigo severo para modificadores que cambian el tipo de droga/paciente (Aplica transversal a TODO)
              if (UNWANTED_MODIFIERS.includes(w)) {
-                penalty += 100;
-             }
-             // Castigo leve para palabras extra en MARCAS (exige match exacto del nombre, incluyendo NÚMEROS extra como '20' o '500')
-             else if (!isPA) {
-                if (w.length >= 2 || /^\d+$/.test(w)) penalty += 1;
+                penalty += 100000;
+             } else if (!isPA) {
+               // Si NO es un principio activo, somos muuuy celosos con las variantes raras.
+               if (/^\d+$/.test(w)) penalty += 20000;
+               else penalty += 50000;
              }
            });
            return penalty;
         };
 
-        const aPenalty = getPenaltyScore(a.nombre);
-        const bPenalty = getPenaltyScore(b.nombre);
-        
-        if (aPenalty !== bPenalty) {
-           return aPenalty - bPenalty;
+        const scoreA = getPenaltyScore(a.nombre);
+        const scoreB = getPenaltyScore(b.nombre);
+
+        if (scoreA !== scoreB) {
+           return scoreA - scoreB;
         }
       }
-
       return parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio);
     });
     return exactMatches[0];
   }
 
-  // TIER 2: Fallback Inteligente cuando se busca por Principio Activo (ej: rupatadina en Ahumada que solo titula como Rupax/Rexanel)
+  // TIER 2: Fallback Inteligente. ÚNICA y EXCLUSIVAMENTE para relajar restricciones de nombre, PERO respetando dosis estrictamente.
   const normQuery = normalizeSearchText(searchProd);
   const queryNums = normQuery.split(/\s+/).filter(tok => /^\d+$/.test(tok));
   
-  let fallbackCandidates = items;
   if (queryNums.length > 0) {
     const doseMatches = items.filter(item => {
       const prodNums = normalizeSearchText(item.nombre).match(/\b\d+\b/g) || [];
       return queryNums.some(num => prodNums.includes(num));
     });
     if (doseMatches.length > 0) {
-        fallbackCandidates = doseMatches;
-      } else {
-        return null;
-      }
+      doseMatches.sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
+      return doseMatches[0];
+    }
   }
 
-  fallbackCandidates.sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
-  return fallbackCandidates[0];
+  // Si no hay coincidencias exactas, ni coincidencias de dosis, NO mostramos basura.
+  return null;
 }
 
 
