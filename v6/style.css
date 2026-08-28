@@ -1428,25 +1428,11 @@ body {
 
 
 
-  position: relative;
-
-
-
-  justify-content: center;
-
-
-
-  align-items: center;
-
-
-
   height: 64px;
 
 
 
   min-height: 64px;
-
-
   box-sizing: border-box;
 }
 
@@ -1462,7 +1448,6 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  text-align: center;
   gap: 6px;
   flex: 1;
   min-width: 0;
@@ -1477,14 +1462,7 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  text-align: center;
   flex-shrink: 0;
-
-
-  margin-left: auto;
-
-
-
 }
 
 
