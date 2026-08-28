@@ -527,40 +527,93 @@ function escapeHtml(str) {
     .replace(/'/g, "&#039;");
 }
 
+function showSearchBannerAlert(msg, isCooldown = false, seconds = 15) {
+  const existing = document.getElementById("search-validation-banner");
+  if (existing) existing.remove();
+
+  const banner = document.createElement("div");
+  banner.id = "search-validation-banner";
+  
+  if (isCooldown) {
+    banner.style.cssText = "background: #eff6ff; border: 1.5px solid #bfdbfe; color: #1d4ed8; padding: 10px 16px; border-radius: 10px; font-weight: 700; font-size: 0.92rem; margin: 14px auto; max-width: 600px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 3px 10px rgba(29, 78, 216, 0.06);";
+    let rem = seconds;
+    banner.innerHTML = `<span>⏳</span> <span>Espera <b>${rem}s</b> antes de volver a buscar.</span>`;
+    searchBtn.disabled = true;
+    
+    const interval = setInterval(() => {
+      rem--;
+      if (rem <= 0) {
+        clearInterval(interval);
+        banner.remove();
+        searchBtn.disabled = false;
+      } else {
+        banner.innerHTML = `<span>⏳</span> <span>Espera <b>${rem}s</b> antes de volver a buscar.</span>`;
+      }
+    }, 1000);
+  } else {
+    banner.style.cssText = "background: #fef2f2; border: 1.5px solid #fecaca; color: #b91c1c; padding: 10px 16px; border-radius: 10px; font-weight: 700; font-size: 0.92rem; margin: 14px auto; max-width: 600px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 3px 10px rgba(239, 68, 68, 0.06);";
+    banner.innerHTML = `<span>⚠️</span> <span>${msg}</span>`;
+    setTimeout(() => {
+      if (banner && banner.parentNode) banner.remove();
+    }, 4000);
+  }
+
+  if (searchForm) {
+    searchForm.insertAdjacentElement("afterend", banner);
+  }
+}
+
 searchForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const rawQuery = searchInput.value.trim();
   if (!rawQuery) return;
 
+  // 1. Candado Cooldown Anti-Spam (8 clics en 30s)
+  if (!window._searchTimestamps) window._searchTimestamps = [];
+  const now = Date.now();
+  window._searchTimestamps = window._searchTimestamps.filter(t => now - t < 30000);
+  if (window._searchTimestamps.length >= 8) {
+    showSearchBannerAlert("", true, 15);
+    return;
+  }
+  window._searchTimestamps.push(now);
+
   let queryItems = rawQuery.split(/[,;\n]+/).map(s => s.trim()).filter(Boolean);
+  if (queryItems.length === 0) return;
 
-  // Validación de texto no válido o copia de instrucciones
-  const normalizedQuery = rawQuery.toLowerCase();
-  const invalidPhrases = [
-    "ingresa los medicamentos",
-    "separados por coma",
-    "compara precios",
-    "maximo 5 medicamentos",
-    "comparador de farmacias",
-    "ej:"
-  ];
-  const isInstructional = invalidPhrases.some(phrase => normalizedQuery.includes(phrase));
-  const isSentence = queryItems.length === 1 && queryItems[0].split(/\s+/).length >= 4 && !/\d+\s*(mg|g|ml|mcg|comprimidos|capsulas)/i.test(queryItems[0]);
-
-  if (isInstructional || isSentence) {
-    showErrorStatus("⚠️ Por favor ingresa nombres de medicamentos válidos separados por coma (ej: paracetamol, omeprazol).");
-    setTimeout(() => { statusBar.style.display = "none"; }, 4000);
+  // 2. Candado Máximo 10 medicamentos por receta
+  if (queryItems.length > 10) {
+    showSearchBannerAlert("Máximo 10 medicamentos por receta.");
     return;
   }
 
-  // Limitar a 10 medicamentos máximo
-  if (queryItems.length > 10) {
-    queryItems = queryItems.slice(0, 10);
-    searchInput.value = queryItems.join(", ");
-    showErrorStatus("⚠️ Máximo 10 medicamentos por búsqueda. Se tomaron los primeros 10.");
-    setTimeout(() => { statusBar.style.display = "none"; }, 3500);
+  // 3. Validación de cada término
+  const charRegex = /^[a-zA-Z0-9áéíóúñÁÉÍÓÚÑ\s\.\,\%\-\(\)\/]+$/;
+  const letterRegex = /[a-zA-ZáéíóúñÁÉÍÓÚÑ]/g;
+
+  for (let item of queryItems) {
+    if (item.length > 50) {
+      showSearchBannerAlert("Texto muy largo. Ingresa solo el nombre del medicamento.");
+      return;
+    }
+    if (item.length < 2) {
+      showSearchBannerAlert("Medicamento no válido. Revisa lo escrito.");
+      return;
+    }
+    if (!charRegex.test(item)) {
+      showSearchBannerAlert("Medicamento no válido. Revisa lo escrito.");
+      return;
+    }
+    const letters = item.match(letterRegex);
+    if (!letters || letters.length < 2) {
+      showSearchBannerAlert("Medicamento no válido. Revisa lo escrito.");
+      return;
+    }
   }
 
+  // Limpiar cualquier banner de error previo antes de buscar
+  const prevBanner = document.getElementById("search-validation-banner");
+  if (prevBanner) prevBanner.remove();
 
   const isMultiple = queryItems.length > 1;
 
