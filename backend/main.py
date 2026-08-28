@@ -71,16 +71,40 @@ def hello():
 
 
 
+ALL_TARGET_PHARMACIES = ["Cruz Verde", "Salcobrand", "Farmacias Ahumada", "Dr. Simi", "Ecofarmacias"]
+
 async def buscar_un_producto(prod: str, force_refresh: bool = False):
     """
-    Busca un medicamento. Si está en base de datos con resultados responde de inmediato (<0.05s).
-    Si no existe O si la caché tiene 0 resultados (scraping previo fallido), ejecuta scraping en vivo.
+    Busca un medicamento con Auto-Healing:
+    1. Si está en caché y TIENE cobertura de las 5 farmacias, responde en <0.05s.
+    2. Si está en caché pero ALGUNA farmacia está vacía/sin stock (ej: Salcobrand no scrapeó anoche),
+       ejecuta auto-healing selectivo solo para las farmacias faltantes y auto-repara la caché.
+    3. Si no está en caché o force_refresh=True, ejecuta scraping completo.
     """
     if not force_refresh:
         cached = get_cached_results(prod)
-        # Solo retornar caché si tiene resultados reales. Si total==0, re-intentar.
         if cached and cached.get("total", 0) > 0:
-            return cached
+            existing_results = cached.get("resultados", [])
+            present_pharmacies = {item.get("fuente") for item in existing_results if item.get("fuente")}
+            missing = [f for f in ALL_TARGET_PHARMACIES if f not in present_pharmacies]
+
+            # Si todas las farmacias están presentes en el caché, responder de inmediato
+            if not missing:
+                return cached
+
+            # Auto-healing selectivo: solo scrapear las farmacias que faltan
+            try:
+                nuevos_items, nuevo_diag = await scrapear_farmacias_especificas(prod, missing)
+                if nuevos_items:
+                    existing_results.extend(nuevos_items)
+                    cached["resultados"] = existing_results
+                    cached["total"] = len(existing_results)
+                    # Auto-reparar la base de datos para que quede permanente
+                    save_cached_results(prod, cached)
+                return cached
+            except Exception as e:
+                print(f"[AUTO-HEALING ERROR] {e}")
+                return cached
 
     data = await scrapear_todas_las_farmacias(prod, max_retries=1)
     save_cached_results(prod, data)
