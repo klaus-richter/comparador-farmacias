@@ -37,29 +37,46 @@ from collections import defaultdict
 from fastapi import Request, HTTPException
 from fastapi.responses import JSONResponse
 
-# Rate Limiting ultra liviano en memoria por IP (0ms latencia)
+# Rate Limiting estricto por IP en memoria (Ventana deslizante de 1 minuto y 1 hora)
 _RATE_LIMIT_STORE = defaultdict(list)
-_MAX_REQUESTS_PER_MINUTE = 15
+_MAX_REQUESTS_PER_MINUTE = 6
+_MAX_REQUESTS_PER_HOUR = 20
 
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
-    # Proteger endpoints de búsqueda contra ataques DoS o bombardeo de bots
+    # Proteger endpoints de búsqueda contra scrapers, bots y spam
     if request.url.path.startswith("/api/buscar"):
         client_ip = request.headers.get("x-forwarded-for") or (request.client.host if request.client else "unknown")
         client_ip = client_ip.split(",")[0].strip()
         now = time.time()
 
-        # Limpiar marcas de tiempo de más de 60 segundos
-        _RATE_LIMIT_STORE[client_ip] = [t for t in _RATE_LIMIT_STORE[client_ip] if now - t < 60]
+        # Filtrar timestamps de la última hora
+        timestamps = [t for t in _RATE_LIMIT_STORE[client_ip] if now - t < 3600]
+        _RATE_LIMIT_STORE[client_ip] = timestamps
 
-        if len(_RATE_LIMIT_STORE[client_ip]) >= _MAX_REQUESTS_PER_MINUTE:
+        # 1. Chequeo límite por minuto (máx 6)
+        recent_1m = [t for t in timestamps if now - t < 60]
+        if len(recent_1m) >= _MAX_REQUESTS_PER_MINUTE:
             return JSONResponse(
                 status_code=429,
                 content={
                     "status": "error",
-                    "detail": "Has realizado demasiadas búsquedas seguidas. Por favor espera un momento."
+                    "code": "RATE_LIMIT_MINUTE",
+                    "detail": "Has superado el límite de 6 consultas por minuto. Espera 1 minuto para continuar."
                 }
             )
+
+        # 2. Chequeo límite por hora (máx 20)
+        if len(timestamps) >= _MAX_REQUESTS_PER_HOUR:
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "status": "error",
+                    "code": "RATE_LIMIT_HOUR",
+                    "detail": "Has superado el límite de 20 consultas por hora. Espera antes de volver a consultar."
+                }
+            )
+
         _RATE_LIMIT_STORE[client_ip].append(now)
 
     response = await call_next(request)
