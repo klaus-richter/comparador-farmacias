@@ -24,11 +24,23 @@ async def _block_resources(route):
 _PLAYWRIGHT_INSTANCE = None
 _SHARED_BROWSER = None
 _BROWSER_LOCK = asyncio.Lock()
+_BROWSER_REQUESTS_COUNT = 0
+MAX_REQUESTS_BEFORE_RESTART = 50
 
 async def get_shared_browser():
-    """Obtiene o inicializa un único navegador Chromium en memoria para todo el servidor."""
-    global _PLAYWRIGHT_INSTANCE, _SHARED_BROWSER
+    """Obtiene o inicializa un único navegador Chromium en memoria para todo el servidor. Incluye Garbage Collector."""
+    global _PLAYWRIGHT_INSTANCE, _SHARED_BROWSER, _BROWSER_REQUESTS_COUNT
     async with _BROWSER_LOCK:
+        if _BROWSER_REQUESTS_COUNT >= MAX_REQUESTS_BEFORE_RESTART:
+            print("[GARBAGE COLLECTOR] Reiniciando Chromium para limpiar Fuga de Memoria (RAM)...")
+            if _SHARED_BROWSER:
+                try:
+                    await _SHARED_BROWSER.close()
+                except:
+                    pass
+            _SHARED_BROWSER = None
+            _BROWSER_REQUESTS_COUNT = 0
+            
         if _SHARED_BROWSER is None or not _SHARED_BROWSER.is_connected():
             if _PLAYWRIGHT_INSTANCE is None:
                 _PLAYWRIGHT_INSTANCE = await async_playwright().start()
@@ -36,13 +48,16 @@ async def get_shared_browser():
                 headless=True,
                 args=[
                     "--disable-blink-features=AutomationControlled",
+                    "--disable-infobars",
                     "--no-sandbox",
-                    "--disable-setuid-sandbox",
                     "--disable-dev-shm-usage",
+                    "--disable-extensions",
                     "--disable-gpu",
-                    "--no-zygote"
+                    "--disable-setuid-sandbox",
+                    "--disable-accelerated-2d-canvas",
                 ]
             )
+        _BROWSER_REQUESTS_COUNT += 1
         return _SHARED_BROWSER
 
 # --- SCRAPERS LIGEROS BASADOS EN PESTAÑAS (PAGES) ---
@@ -209,7 +224,7 @@ async def _fetch_drsimi_vtex(producto: str) -> List[Dict[str, Any]]:
             "fuente": "Dr. Simi",
             "disponible": True
         })
-    return results[:6]
+    return results[:20]
 
 
 
