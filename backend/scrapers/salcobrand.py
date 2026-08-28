@@ -3,7 +3,7 @@ from playwright.async_api import async_playwright, TimeoutError as PlaywrightTim
 
 BASE_URL = "https://salcobrand.cl"
 
-async def buscar_salcobrand(producto: str, max_resultados: int = 6) -> list[dict]:
+async def buscar_salcobrand(producto: str, max_resultados: int = 20) -> list[dict]:
     """
     Busca un producto en Salcobrand directamente por URL de búsqueda.
     """
