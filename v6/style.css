@@ -1428,18 +1428,6 @@ body {
 
 
 
-  align-items: center;
-
-
-
-  justify-content: space-between;
-
-
-
-  gap: 10px;
-
-
-
   height: 64px;
 
 
@@ -3109,25 +3097,16 @@ body {
   /* Cabecera limpia con altura fija */
 
   .col-header {
-
     padding: 8px 6px !important;
-
-    height: 60px !important;
-
-    min-height: 60px !important;
-
-    max-height: 60px !important;
-
+    height: auto !important;
+    min-height: 70px !important;
+    max-height: none !important;
     display: flex !important;
-
     flex-direction: column !important;
-
-    align-items: flex-start !important;
-
-    justify-content: space-between !important;
-
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
     box-sizing: border-box !important;
-
   }
 
 
