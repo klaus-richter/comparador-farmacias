@@ -37,9 +37,10 @@ from collections import defaultdict
 from fastapi import Request, HTTPException
 from fastapi.responses import JSONResponse
 
-# Rate Limiting estricto por IP en memoria (Ventana deslizante de 1 minuto y 1 hora)
+# Rate Limiting estricto por IP en memoria (Ventana deslizante + Bloqueo de 1 hora)
 _RATE_LIMIT_STORE = defaultdict(list)
-_MAX_REQUESTS_PER_MINUTE = 6
+_BLOCKED_IPS_STORE = {}
+_MAX_REQUESTS_PER_MINUTE = 10
 _MAX_REQUESTS_PER_HOUR = 20
 
 @app.middleware("http")
@@ -50,30 +51,47 @@ async def rate_limit_middleware(request: Request, call_next):
         client_ip = client_ip.split(",")[0].strip()
         now = time.time()
 
+        # 0. Chequeo si la IP está en periodo de bloqueo de 1 hora
+        if client_ip in _BLOCKED_IPS_STORE:
+            unblock_time = _BLOCKED_IPS_STORE[client_ip]
+            if now < unblock_time:
+                return JSONResponse(
+                    status_code=429,
+                    content={
+                        "status": "error",
+                        "code": "IP_BLOCKED_1H",
+                        "detail": "Has superado el límite de consultas permitidas. Espera 1 hora para volver a intentar desde este dispositivo."
+                    }
+                )
+            else:
+                del _BLOCKED_IPS_STORE[client_ip]
+
         # Filtrar timestamps de la última hora
         timestamps = [t for t in _RATE_LIMIT_STORE[client_ip] if now - t < 3600]
         _RATE_LIMIT_STORE[client_ip] = timestamps
 
-        # 1. Chequeo límite por minuto (máx 6)
+        # 1. Chequeo límite por minuto (máx 10)
         recent_1m = [t for t in timestamps if now - t < 60]
         if len(recent_1m) >= _MAX_REQUESTS_PER_MINUTE:
+            _BLOCKED_IPS_STORE[client_ip] = now + 3600  # Bloquear por 1 hora
             return JSONResponse(
                 status_code=429,
                 content={
                     "status": "error",
                     "code": "RATE_LIMIT_MINUTE",
-                    "detail": "Has superado el límite de 6 consultas por minuto. Espera 1 minuto para continuar."
+                    "detail": "Has superado el límite de 10 consultas por minuto. Espera 1 hora para volver a intentar desde este dispositivo."
                 }
             )
 
         # 2. Chequeo límite por hora (máx 20)
         if len(timestamps) >= _MAX_REQUESTS_PER_HOUR:
+            _BLOCKED_IPS_STORE[client_ip] = now + 3600  # Bloquear por 1 hora
             return JSONResponse(
                 status_code=429,
                 content={
                     "status": "error",
                     "code": "RATE_LIMIT_HOUR",
-                    "detail": "Has superado el límite de 20 consultas por hora. Espera antes de volver a consultar."
+                    "detail": "Has superado el límite de 20 consultas por hora. Espera 1 hora para volver a intentar desde este dispositivo."
                 }
             )
 
