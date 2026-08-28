@@ -441,7 +441,7 @@ function renderRecipeComparison(receta, queryList) {
           ${pharmacy.fuente}
         </div>
         <span class="rank-badge ${isWinner ? "rank-winner" : "rank-other"}">
-          ${isWinner ? "🏆 Más Económica" : `#${idx + 1}`}
+          #${idx + 1}
         </span>
       </div>
 
