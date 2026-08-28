@@ -283,22 +283,51 @@ function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
     return exactMatches[0];
   }
 
-  // TIER 2: Fallback Inteligente. ÚNICA y EXCLUSIVAMENTE para relajar restricciones de nombre, PERO respetando dosis estrictamente.
+  // TIER 2: Fallback Inteligente a Bioequivalente / Principio Activo
+  // Si la farmacia no tiene la marca exacta, busca el principio activo equivalente respetando dosis y forma.
   const normQuery = normalizeSearchText(searchProd);
   const queryNums = normQuery.split(/\s+/).filter(tok => /^\d+$/.test(tok));
   
-  if (queryNums.length > 0) {
-    const doseMatches = items.filter(item => {
-      const prodNums = normalizeSearchText(item.nombre).match(/\b\d+\b/g) || [];
-      return queryNums.some(num => prodNums.includes(num));
-    });
-    if (doseMatches.length > 0) {
-      doseMatches.sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
-      return doseMatches[0];
+  let fallbackCandidates = [];
+  
+  // 1. Intentar resolver la marca a Principio Activo oficial ISP
+  let paTerm = null;
+  if (typeof window !== "undefined" && window.ISPEngine && window.ISPEngine.resolveTerm) {
+    const res = window.ISPEngine.resolveTerm(searchProd);
+    if (res && res.encontrado && res.principio_activo) {
+      paTerm = normalizeSearchText(res.principio_activo);
     }
   }
 
-  // Si no hay coincidencias exactas, ni coincidencias de dosis, NO mostramos basura.
+  if (paTerm) {
+    fallbackCandidates = items.filter(item => {
+      const np = normalizeSearchText(item.nombre);
+      // Debe contener el principio activo
+      if (!np.includes(paTerm)) return false;
+      // Debe respetar dosis si se especificó
+      if (queryNums.length > 0) {
+        const prodNums = np.match(/\b\d+\b/g) || [];
+        if (!queryNums.some(num => prodNums.includes(num))) return false;
+      }
+      return true;
+    });
+  }
+
+  // 2. Si no se resolvió por ISP pero hay dosis, buscar coincidencia estricta de dosis
+  if (fallbackCandidates.length === 0 && queryNums.length > 0) {
+    fallbackCandidates = items.filter(item => {
+      const np = normalizeSearchText(item.nombre);
+      const prodNums = np.match(/\b\d+\b/g) || [];
+      return queryNums.some(num => prodNums.includes(num));
+    });
+  }
+
+  if (fallbackCandidates.length > 0) {
+    fallbackCandidates.sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
+    return fallbackCandidates[0];
+  }
+
+  // Si no hay coincidencias de marca ni principio activo/dosis, marcar Sin Stock
   return null;
 }
 
