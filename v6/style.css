@@ -2369,21 +2369,9 @@ body {
 
 
 .price-no-stock {
-
-
-
-  color: #94a3b8 !important;
-
-
-
-  font-size: 0.88rem !important;
-
-
-
+  color: #64748b !important;
+  font-size: 0.98rem !important;
   font-weight: 600 !important;
-
-
-
 }
 
 
@@ -4256,7 +4244,10 @@ body {
 /* --- ÚLTIMOS AJUSTES MÓVILES (AIRE Y TIPOGRAFÍA) --- */
 
 @media (max-width: 640px) {
-
+    .price-no-stock {
+        color: #94a3b8 !important;
+        font-size: 0.88rem !important;
+    }
     .app-top-nav {
 
         margin-bottom: 30px !important; /* Más aire entre logo y título */
