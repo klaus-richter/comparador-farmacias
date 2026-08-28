@@ -1,5 +1,7 @@
 // Configuración de API (soporta local y despliegue en Google Cloud Run para GitHub Pages)
-const API = "https://comparador-backend-201153254876.us-central1.run.app";
+const API = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" 
+    ? "http://localhost:8000" 
+    : "https://comparador-backend-201153254876.us-central1.run.app";
 
 
 const statusBar = document.getElementById("status-bar");
