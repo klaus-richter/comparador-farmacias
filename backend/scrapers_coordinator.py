@@ -27,8 +27,10 @@ _BROWSER_LOCK = asyncio.Lock()
 _BROWSER_REQUESTS_COUNT = 0
 MAX_REQUESTS_BEFORE_RESTART = 50
 
+import os
+
 async def get_shared_browser():
-    """Obtiene o inicializa un único navegador Chromium en memoria para todo el servidor. Incluye Garbage Collector."""
+    """Obtiene o inicializa un único navegador Chromium en memoria para todo el servidor. Incluye Garbage Collector y soporte Proxy."""
     global _PLAYWRIGHT_INSTANCE, _SHARED_BROWSER, _BROWSER_REQUESTS_COUNT
     async with _BROWSER_LOCK:
         if _BROWSER_REQUESTS_COUNT >= MAX_REQUESTS_BEFORE_RESTART:
@@ -44,8 +46,21 @@ async def get_shared_browser():
         if _SHARED_BROWSER is None or not _SHARED_BROWSER.is_connected():
             if _PLAYWRIGHT_INSTANCE is None:
                 _PLAYWRIGHT_INSTANCE = await async_playwright().start()
+            
+            # Soporte de Proxy Residencial
+            proxy_config = None
+            proxy_server = os.environ.get("PROXY_SERVER")
+            if proxy_server:
+                proxy_config = {
+                    "server": proxy_server,
+                    "username": os.environ.get("PROXY_USERNAME"),
+                    "password": os.environ.get("PROXY_PASSWORD"),
+                }
+                print(f"[PROXY] Chromium configurado con proxy residencial: {proxy_server}")
+
             _SHARED_BROWSER = await _PLAYWRIGHT_INSTANCE.chromium.launch(
                 headless=True,
+                proxy=proxy_config,
                 args=[
                     "--disable-blink-features=AutomationControlled",
                     "--disable-infobars",
