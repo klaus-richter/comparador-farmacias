@@ -1672,7 +1672,7 @@ body {
 
 
 
-  font-weight: 700;
+  font-weight: 500;
 
 
 
@@ -2846,8 +2846,8 @@ body {
 
   .offer-label {
     font-size: 0.68rem !important;
-    font-weight: 800 !important;
-    letter-spacing: 0 !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.02em !important;
     margin-bottom: 2px !important;
     white-space: nowrap !important;
   }
