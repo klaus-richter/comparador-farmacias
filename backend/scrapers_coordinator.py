@@ -4,11 +4,12 @@ from typing import List, Dict, Any, Tuple
 from playwright.async_api import async_playwright
 from backend.scrapers.ecofarmacias import buscar_ecofarmacias
 
-# ── Resource blocking: reduce CPU/RAM/tiempo 40-60% en Render ──
-_SKIP_TYPES = {"image","stylesheet","font","media"}
-_SKIP_DOMAINS = ["google","facebook","analytics","gtm","clarity","hotjar",
-    "doubleclick","datadog","segment","tiktok","twitter",
-    "pixel","ads","tracking","newrelic","akamai","omtrdc"]
+from backend.scrapers.salcobrand import buscar_salcobrand
+
+# ── Resource blocking: reduce CPU/RAM/tiempo 40-60% sin romper CDNs esenciales ──
+_SKIP_TYPES = {"image", "media", "font"}
+_SKIP_DOMAINS = ["google-analytics", "facebook", "clarity", "hotjar",
+    "doubleclick", "datadog", "tiktok", "twitter", "ads"]
 
 async def _block_resources(route):
     req = route.request
@@ -244,120 +245,89 @@ async def _fetch_drsimi_vtex(producto: str) -> List[Dict[str, Any]]:
 
 
 async def _scrape_page_cruzverde(page, producto: str) -> List[Dict[str, Any]]:
-    url = f"https://www.cruzverde.cl/search?query={producto}"
-    await page.route("**/*", _block_resources)
-    
-    # Inyectar cookies de comuna para evitar que el modal de ubicación bloquee el catálogo
     try:
-        await page.context.add_cookies([
-            {"name": "cruzverde_commune", "value": "LAS CONDES", "domain": ".cruzverde.cl", "path": "/"},
-            {"name": "cruzverde_region", "value": "13", "domain": ".cruzverde.cl", "path": "/"}
-        ])
-    except Exception:
-        pass
+        url = f"https://www.cruzverde.cl/search?query={producto}"
+        await page.route("**/*", _block_resources)
+        
+        # Inyectar cookies de comuna
+        try:
+            await page.context.add_cookies([
+                {"name": "cruzverde_commune", "value": "LAS CONDES", "domain": ".cruzverde.cl", "path": "/"},
+                {"name": "cruzverde_region", "value": "13", "domain": ".cruzverde.cl", "path": "/"}
+            ])
+        except Exception:
+            pass
 
-    await page.goto(url, wait_until="domcontentloaded", timeout=25000)
-    
-    # Cerrar modal si aparece
-    try:
-        modal_btn = await page.query_selector('button:has-text("Aceptar"), button:has-text("Continuar"), [class*="close"]')
-        if modal_btn:
-            await modal_btn.click()
-    except Exception:
-        pass
+        await page.goto(url, wait_until="domcontentloaded", timeout=25000)
+        await page.wait_for_timeout(2000)
+        
+        # Si aparece el modal de comuna, darle click a aceptar o cerrarlo
+        try:
+            btn = await page.query_selector('button:has-text("Aceptar"), [class*="modal"] button')
+            if btn:
+                await btn.click()
+                await page.wait_for_timeout(2000)
+        except Exception:
+            pass
 
-    try:
-        await page.wait_for_selector('a[href*=".html"]', timeout=8000)
-    except Exception:
-        pass
-    # Inmediato
-        pass
+        try:
+            await page.wait_for_selector('a[href*=".html"]', timeout=8000)
+        except Exception:
+            pass
 
-    CV_EVAL = r"""() => {
-        const results = [], seen = new Set();
-        const links = Array.from(document.querySelectorAll('a[href*=".html"]'));
-        for (const a of links) {
-            const href = a.getAttribute('href') || '';
-            if (!/\/\d+\.html(\?|$)/.test(href) || seen.has(href)) continue;
-
-            // Subir en el árbol DOM hasta encontrar la tarjeta con el precio
-            let cur = a;
-            let card = null;
-            for (let i = 0; i < 8; i++) {
-                if (!cur.parentElement) break;
-                cur = cur.parentElement;
-                if (/\$\s*[\d\.]+/g.test(cur.innerText || '')) {
-                    card = cur;
-                    break;
+        items = await page.evaluate(r"""() => {
+            const results = [], seen = new Set();
+            const links = Array.from(document.querySelectorAll('a[href*=".html"]'));
+            for (const a of links) {
+                const href = a.getAttribute('href') || '';
+                if (!/\/\d+\.html(\?|$)/.test(href) || seen.has(href)) continue;
+                let cur = a, card = null;
+                for (let i = 0; i < 8; i++) {
+                    if (!cur.parentElement) break;
+                    cur = cur.parentElement;
+                    if (/\$\s*[\d\.]+/g.test(cur.innerText || '')) { card = cur; break; }
+                }
+                if (!card) continue;
+                seen.add(href);
+                const txt = card.innerText.trim();
+                if (/agotado|sin\s*stock/i.test(txt)) continue;
+                const prices = txt.match(/\$\s*[\d\.]+/g);
+                if (prices && prices.length > 0) {
+                    let name = "";
+                    const slugMatch = href.match(/\/([a-zA-Z0-9\-]+)\/\d+\.html/);
+                    if (slugMatch) {
+                        name = slugMatch[1].replace(/--+/g, ' - ').replace(/-/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                    }
+                    if (!name || name.length < 4) {
+                        const lines = txt.split('\n').map(l => l.trim()).filter(Boolean);
+                        name = lines.find(l => !l.includes('$') && l.length > 3) || a.innerText.trim();
+                    }
+                    const fullHref = href.startsWith('http') ? href : `https://www.cruzverde.cl${href.startsWith('/') ? '' : '/'}${href}`;
+                    results.push({ nombre: name, precio: prices[0].replace(/\s+/g, ''), url: fullHref, fuente: "Cruz Verde", disponible: true });
                 }
             }
-            if (!card) continue;
-            seen.add(href);
-
-            const txt = card.innerText.trim();
-            if (/agotado|sin\s*stock\s*online|sin\s*existencia/i.test(txt)) continue;
-
-            const prices = txt.match(/\$\s*[\d\.]+/g);
-            if (!prices || prices.length === 0) continue;
-
-            // Extraer nombre legible combinando marca o texto relevante
-            const lines = txt.split('\n').map(l => l.trim()).filter(l => l && !l.includes('$') && l.length > 2 && l.length < 90 && !/receta|bioequivalente|destacado|oferta/i.test(l));
-            let name = lines.length > 1 ? `${lines[0]} - ${lines[1]}` : (lines.length === 1 ? lines[0] : '');
-
-            if (!name) {
-                const slugMatch = href.match(/\/([a-zA-Z0-9\-]+)\/\d+\.html/);
-                if (slugMatch) {
-                    name = slugMatch[1].replace(/--+/g, ' - ').replace(/-/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-                }
-            }
-
-            const cleanPrice = prices[prices.length - 1].replace(/\s+/g, '');
-            const fullHref = href.startsWith('http') ? href : `https://www.cruzverde.cl${href}`;
-            results.push({ nombre: name, precio: cleanPrice, url: fullHref, fuente: "Cruz Verde", disponible: true });
-        }
-        return results.slice(0, 20);
-    }"""
-
-    items = await page.evaluate(CV_EVAL)
-    if not items:
-        await page.wait_for_timeout(2500)
-        items = await page.evaluate(CV_EVAL)
-    return items
+            return results;
+        }""")
+        print(f"[CRUZ VERDE DEBUG] Encontrados {len(items)} items en evaluation")
+        return items
+    except Exception as e_cv:
+        print(f"[CRUZ VERDE GLOBAL ERROR] {e_cv}")
+        return []
 
 
-
-
-
-# Semáforo para controlar concurrencia de pestañas y no saturar los 0.1 CPU de Render
-_PAGE_SEMAPHORE = asyncio.Semaphore(5)
+# Semáforo para serializar pestañas de Chromium a través del proxy residencial chileno
+_PAGE_SEMAPHORE = asyncio.Semaphore(1)
 
 # --- COORDINADOR PRINCIPAL ULTRA RÁPIDO ---
 
 async def scrapear_todas_las_farmacias(producto: str, max_retries: int = 1) -> Dict[str, Any]:
     """
-    Coordina la búsqueda en las 5 farmacias simultáneas usando 1 solo navegador compartido.
-    Usa semáforo para evitar starvation de CPU en contenedores de 0.1 CPU.
+    Coordina la búsqueda en las 5 farmacias simultáneas.
+    - Salcobrand, Dr. Simi y Ecofarmacias: Vía APIs públicas/CDN directas (0 Chromium, <0.4s).
+    - Ahumada y Cruz Verde: Vía Chromium con proxy residencial IPRoyal y resource blocking.
     """
     t0 = time.time()
-    browser = await get_shared_browser()
     
-    context = await browser.new_context(
-        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        viewport={"width": 1280, "height": 800}
-    )
-
-    async def _run_scraper(nombre: str, fn):
-        async with _PAGE_SEMAPHORE:
-            try:
-                page = await context.new_page()
-                try:
-                    items = await fn(page, producto)
-                    return nombre, items, {"status": "OK" if items else "SIN_STOCK", "total": len(items)}
-                finally:
-                    await page.close()
-            except Exception as e:
-                return nombre, [], {"status": "ERROR", "error": str(e), "total": 0}
-
     async def _run_eco():
         try:
             items = await buscar_ecofarmacias(producto)
@@ -372,17 +342,49 @@ async def scrapear_todas_las_farmacias(producto: str, max_retries: int = 1) -> D
         except Exception as e:
             return "Dr. Simi", [], {"status": "ERROR", "error": str(e), "total": 0}
 
-    # Ecofarmacias y Dr. Simi corren en paralelo inmediato por HTTP REST (0 Chromium, <0.8s)
-    # Las 3 grandes restantes (Ahumada, Salco, Cruz Verde) usan Chromium con semáforo y resource blocking
+    async def _run_salco():
+        try:
+            items = await buscar_salcobrand(producto)
+            return "Salcobrand", items, {"status": "OK" if items else "SIN_STOCK", "total": len(items)}
+        except Exception as e:
+            return "Salcobrand", [], {"status": "ERROR", "error": str(e), "total": 0}
+
+    # Browser compartido para Ahumada y Cruz Verde (con proxy)
+    browser = await get_shared_browser()
+    context = await browser.new_context(
+        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        viewport={"width": 1280, "height": 800},
+        locale="es-CL",
+        timezone_id="America/Santiago"
+    )
+    try:
+        await context.add_cookies([
+            {"name": "cruzverde_commune", "value": "LAS CONDES", "domain": ".cruzverde.cl", "path": "/"},
+            {"name": "cruzverde_region", "value": "13", "domain": ".cruzverde.cl", "path": "/"}
+        ])
+    except Exception:
+        pass
+
+    async def _run_scraper(nombre: str, fn):
+        async with _PAGE_SEMAPHORE:
+            try:
+                page = await context.new_page()
+                try:
+                    items = await fn(page, producto)
+                    return nombre, items, {"status": "OK" if items else "SIN_STOCK", "total": len(items)}
+                finally:
+                    await page.close()
+            except Exception as e:
+                return nombre, [], {"status": "ERROR", "error": str(e), "total": 0}
+
+    # Ejecución paralela de las 5 farmacias
     respuestas = await asyncio.gather(
         _run_eco(),
         _run_simi(),
+        _run_salco(),
         _run_scraper("Farmacias Ahumada", _scrape_page_ahumada),
-        _run_scraper("Salcobrand", _scrape_page_salcobrand),
         _run_scraper("Cruz Verde", _scrape_page_cruzverde),
     )
-
-
 
     await context.close()
 
@@ -436,10 +438,18 @@ async def scrapear_farmacias_especificas(producto: str, nombres_farmacias: List[
                 return "Dr. Simi", [], {"status": "ERROR", "error": str(e), "total": 0}
         tasks.append(_run_simi())
 
-    # 2. Farmacias por Chromium
+    if any("salco" in n.lower() for n in nombres_farmacias):
+        async def _run_salco():
+            try:
+                items = await buscar_salcobrand(producto)
+                return "Salcobrand", items, {"status": "OK" if items else "SIN_STOCK", "total": len(items)}
+            except Exception as e:
+                return "Salcobrand", [], {"status": "ERROR", "error": str(e), "total": 0}
+        tasks.append(_run_salco())
+
+    # 2. Farmacias por Chromium con Proxy (Ahumada, Cruz Verde)
     browser_mapping = {
         "Farmacias Ahumada": _scrape_page_ahumada,
-        "Salcobrand": _scrape_page_salcobrand,
         "Cruz Verde": _scrape_page_cruzverde
     }
 
@@ -449,7 +459,7 @@ async def scrapear_farmacias_especificas(producto: str, nombres_farmacias: List[
     if needed_browser:
         browser = await get_shared_browser()
         context = await browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36",
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
             viewport={"width": 1280, "height": 800}
         )
 
@@ -481,4 +491,5 @@ async def scrapear_farmacias_especificas(producto: str, nombres_farmacias: List[
         nuevos_items.extend(items)
 
     return nuevos_items, nuevo_reporte
+
 
