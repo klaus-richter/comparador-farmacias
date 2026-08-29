@@ -1901,10 +1901,10 @@ body {
 
 .recipe-prod-tag {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  font-size: 0.85rem;
-  font-weight: 800;
+  font-size: 0.90rem;
+  font-weight: 700;
   text-transform: uppercase;
-  color: #334155;
+  color: #0c1e3d;
   letter-spacing: 0.01em;
   white-space: nowrap;
   overflow: hidden;
@@ -2003,45 +2003,15 @@ body {
 
 
 .recipe-prod-price {
-
-
-
-  font-size: 0.94rem;
-
-
-
+  font-size: 1.02rem;
   font-weight: 800;
-
-
-
-  color: #18181b;
-
-
-
+  color: #0f172a;
   white-space: nowrap;
-
-
-
   text-align: right;
-
-
-
   display: inline-flex;
-
-
-
   align-items: center;
-
-
-
   justify-content: flex-end;
-
-
-
   gap: 4px;
-
-
-
 }
 
 
