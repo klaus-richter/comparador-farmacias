@@ -2008,8 +2008,8 @@ body {
 
 .recipe-prod-price {
   font-size: 1.02rem;
-  font-weight: 800;
-  color: #0f172a;
+  font-weight: 500;
+  color: #475569;
   white-space: nowrap;
   text-align: right;
   display: inline-flex;
@@ -2975,8 +2975,14 @@ body {
 
   .recipe-prod-price {
     font-size: 0.94rem !important;
-    font-weight: 800 !important;
+    font-weight: 500 !important;
+    color: #475569 !important;
     line-height: 1 !important;
+  }
+
+  .recipe-prod-price.cheapest-price {
+    font-weight: 800 !important;
+    color: #000000 !important;
   }
 
   .icon-link-btn {
