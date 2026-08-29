@@ -485,7 +485,7 @@ function renderRecipeComparison(receta, queryList) {
       </div>
 
       <div class="col-best-offer">
-        <span class="offer-label">Total de la receta:</span>
+        <span class="offer-label">TOTAL:</span>
         <div class="offer-price-row">
           <span class="offer-price">${priceDisplayText}</span>
         </div>
