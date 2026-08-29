@@ -485,7 +485,7 @@ function renderRecipeComparison(receta, queryList) {
       </div>
 
       <div class="col-best-offer">
-        <span class="offer-label">Total de la receta completa:</span>
+        <span class="offer-label">TOTAL:</span>
         <div class="offer-price-row">
           <span class="offer-price">${priceDisplayText}</span>
         </div>
@@ -502,7 +502,7 @@ function renderRecipeComparison(receta, queryList) {
                 </span>
                 ${item.bestItem && item.bestItem.url ? `
                   <a href="${item.bestItem.url}" target="_blank" rel="noopener noreferrer" class="icon-link-btn" title="Ver producto en la farmacia">
-                    ↗
+                    VER ↗
                   </a>
                 ` : `<span class="icon-placeholder"></span>`}
               </div>
