@@ -74,7 +74,7 @@ function startWaitingAnimation(query) {
   if (progressInterval) clearInterval(progressInterval);
   if (stepInterval) clearInterval(stepInterval);
 
-  // Progreso dinámico y rápido calibrado a los nuevos tiempos (avanza cada 200ms)
+  // Progreso dinámico y rápido calibrado a los nuevos tiempos (avanza cada 450ms)
   progressInterval = setInterval(() => {
     if (currentPercent < 50) {
       currentPercent += Math.floor(Math.random() * 5) + 4; // Rápido al inicio
@@ -90,9 +90,9 @@ function startWaitingAnimation(query) {
 
     const fillEl = document.getElementById("progress-fill");
     if (fillEl) fillEl.style.width = `${currentPercent}%`;
-  }, 220);
+  }, 450);
 
-  // Rotar textos informativos cada 1.3 segundos
+  // Rotar textos informativos cada 2.8 segundos
   stepInterval = setInterval(() => {
     stepIndex = (stepIndex + 1) % DYNAMIC_STEPS.length;
     statusStep.style.opacity = 0;
@@ -100,7 +100,7 @@ function startWaitingAnimation(query) {
       statusStep.textContent = DYNAMIC_STEPS[stepIndex];
       statusStep.style.opacity = 1;
     }, 150);
-  }, 1300);
+  }, 2800);
 }
 
 function stopWaitingAnimation() {
@@ -222,7 +222,53 @@ function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
   // TIER 1: Coincidencia directa con la palabra clave o marca buscada
   const exactMatches = items.filter(item => matchProductInteligente(item.nombre, searchProd));
   if (exactMatches.length > 0) {
-    exactMatches.sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
+    exactMatches.sort((a, b) => {
+      const normQ = normalizeSearchText(searchProd).split(/\s+/);
+
+      // Penalizacion Inteligente de "Apellidos" y Variantes
+      if (normQ.length > 0) {
+        const firstWord = normQ[0];
+        let isPA = false;
+        if (typeof ISP_DATA !== 'undefined' && ISP_DATA.principios_activos) {
+           const paKeys = Object.keys(ISP_DATA.principios_activos);
+           if (paKeys.some(pa => pa.includes(firstWord) || firstWord.includes(pa))) {
+              isPA = true;
+           }
+        }
+        
+        const UNWANTED_MODIFIERS = ['infantil', 'pediatrico', 'pediátrico', 'jarabe', 'gotas', 'suspension', 'supositorios', 'fol', 'forte', 'plus', 'sr', 'xr', 'lp', 'cd', 'ap', 'd', 'c', 'dia', 'noche', 'mujer', 'hombre'];
+        const ignoreList = ['mg', 'mcg', 'g', 'ml', 'ui', 'u', 'comp', 'comprimidos', 'capsulas', 'grageas', 'jeringas', 'ampollas', 'sobres', 'x', 'cm', 'l', 'recubiertos', 'recubierto'];
+        
+        const getPenaltyScore = (prodName) => {
+           let penalty = 0;
+           const words = normalizeSearchText(prodName).split(/\s+/);
+           
+           words.forEach(w => {
+             if (normQ.includes(w)) return; // Si el usuario lo pidio explicitamente, no hay penalidad
+             if (ignoreList.includes(w)) return; // Ignorar unidades de medida y palabras irrelevantes
+             
+             // Castigo severo para modificadores que cambian el tipo de droga/paciente (Aplica transversal a TODO)
+             if (UNWANTED_MODIFIERS.includes(w)) {
+                penalty += 100;
+             }
+             // Castigo leve para palabras extra en MARCAS (exige match exacto del nombre, incluyendo NÚMEROS extra como '20' o '500')
+             else if (!isPA) {
+                if (w.length >= 2 || /^\d+$/.test(w)) penalty += 1;
+             }
+           });
+           return penalty;
+        };
+
+        const aPenalty = getPenaltyScore(a.nombre);
+        const bPenalty = getPenaltyScore(b.nombre);
+        
+        if (aPenalty !== bPenalty) {
+           return aPenalty - bPenalty;
+        }
+      }
+
+      return parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio);
+    });
     return exactMatches[0];
   }
 
@@ -237,8 +283,10 @@ function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
       return queryNums.some(num => prodNums.includes(num));
     });
     if (doseMatches.length > 0) {
-      fallbackCandidates = doseMatches;
-    }
+        fallbackCandidates = doseMatches;
+      } else {
+        return null;
+      }
   }
 
   fallbackCandidates.sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
@@ -416,7 +464,7 @@ function renderRecipeComparison(receta, queryList) {
                 </span>
                 ${item.bestItem && item.bestItem.url ? `
                   <a href="${item.bestItem.url}" target="_blank" rel="noopener noreferrer" class="icon-link-btn" title="Ver producto en la farmacia">
-                    ↗
+                    VER ↗
                   </a>
                 ` : `<span class="icon-placeholder"></span>`}
               </div>
