@@ -2009,7 +2009,7 @@ body {
 .recipe-prod-price {
   font-size: 1.08rem;
   font-weight: 500;
-  color: #475569;
+  color: #000000;
   white-space: nowrap;
   text-align: right;
   display: inline-flex;
@@ -2975,7 +2975,7 @@ body {
   .recipe-prod-price {
     font-size: 0.94rem !important;
     font-weight: 500 !important;
-    color: #475569 !important;
+    color: #000000 !important;
     line-height: 1 !important;
   }
 
