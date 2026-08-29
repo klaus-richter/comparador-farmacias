@@ -1,7 +1,5 @@
 // Configuración de API (soporta local y despliegue en Google Cloud Run para GitHub Pages)
-const API = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" 
-    ? "http://localhost:8000" 
-    : "https://comparador-backend-201153254876.us-central1.run.app";
+const API = "https://comparador-backend-201153254876.us-central1.run.app";
 
 
 const statusBar = document.getElementById("status-bar");
@@ -76,7 +74,7 @@ function startWaitingAnimation(query) {
   if (progressInterval) clearInterval(progressInterval);
   if (stepInterval) clearInterval(stepInterval);
 
-  // Progreso dinámico y rápido calibrado a los nuevos tiempos (avanza cada 450ms)
+  // Progreso dinámico y rápido calibrado a los nuevos tiempos (avanza cada 200ms)
   progressInterval = setInterval(() => {
     if (currentPercent < 50) {
       currentPercent += Math.floor(Math.random() * 5) + 4; // Rápido al inicio
@@ -92,9 +90,9 @@ function startWaitingAnimation(query) {
 
     const fillEl = document.getElementById("progress-fill");
     if (fillEl) fillEl.style.width = `${currentPercent}%`;
-  }, 450);
+  }, 220);
 
-  // Rotar textos informativos cada 2.8 segundos
+  // Rotar textos informativos cada 1.3 segundos
   stepInterval = setInterval(() => {
     stepIndex = (stepIndex + 1) % DYNAMIC_STEPS.length;
     statusStep.style.opacity = 0;
@@ -102,7 +100,7 @@ function startWaitingAnimation(query) {
       statusStep.textContent = DYNAMIC_STEPS[stepIndex];
       statusStep.style.opacity = 1;
     }, 150);
-  }, 2800);
+  }, 1300);
 }
 
 function stopWaitingAnimation() {
@@ -179,12 +177,13 @@ function normalizeSearchText(text) {
 }
 
 function matchProductInteligente(prodName, searchQuery) {
-  // 1. Usar motor semántico del ISP como fuente ÚNICA de verdad si está disponible
+  // 1. Usar motor semántico del ISP si está disponible en ventana
   if (typeof window !== "undefined" && window.ISPEngine) {
-    return window.ISPEngine.matchProductAgainstQuery(prodName, searchQuery);
+    const isMatch = window.ISPEngine.matchProductAgainstQuery(prodName, searchQuery);
+    if (isMatch) return true;
   }
 
-  // 2. Fallback heurístico léxico (SOLO si el motor no cargó por algún motivo)
+  // 2. Fallback heurístico léxico
   const normProd = normalizeSearchText(prodName);
   const normQuery = normalizeSearchText(searchQuery);
 
@@ -216,119 +215,34 @@ function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
   // 1. Filtrar productos de esta farmacia con precio válido
   const items = (allResults || [])
     .filter(item => matchPharmacy(item.fuente, targetPharmacy))
-    .filter(item => parsePriceToNumber(item.precio) !== Infinity)
-    .sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
+    .filter(item => parsePriceToNumber(item.precio) !== Infinity);
 
   if (items.length === 0) return null;
 
-  // TIER 1: Coincidencia inteligente usando el motor del ISP
+  // TIER 1: Coincidencia directa con la palabra clave o marca buscada
   const exactMatches = items.filter(item => matchProductInteligente(item.nombre, searchProd));
   if (exactMatches.length > 0) {
-    exactMatches.sort((a, b) => {
-      const normQ = normalizeSearchText(searchProd).split(/\s+/);
-
-      // Penalizacion Inteligente de "Apellidos" y Variantes
-      if (normQ.length > 0) {
-        const firstWord = normQ[0];
-        let isPA = false;
-        if (typeof ISP_DATA !== 'undefined' && ISP_DATA.principios_activos) {
-           const paKeys = Object.keys(ISP_DATA.principios_activos);
-           if (paKeys.some(pa => pa.includes(firstWord) || firstWord.includes(pa))) {
-              isPA = true;
-           }
-        }
-        
-        const UNWANTED_MODIFIERS = ['infantil', 'pediatrico', 'pediátrico', 'jarabe', 'gotas', 'suspension', 'supositorios', 'fol', 'forte', 'plus', 'sr', 'xr', 'lp', 'cd', 'ap', 'd', 'c', 'dia', 'noche', 'mujer', 'hombre'];
-        const ignoreList = ['mg', 'mcg', 'g', 'ml', 'ui', 'u', 'comp', 'comprimidos', 'capsulas', 'grageas', 'jeringas', 'ampollas', 'sobres', 'x', 'cm', 'l', 'recubiertos', 'recubierto'];
-        
-        const getPenaltyScore = (prodName) => {
-           let penalty = 0;
-           const words = normalizeSearchText(prodName).split(/\s+/);
-           
-           // Construir set de principios activos conocidos para no penalizarlos
-           let knownPA = new Set();
-           if (typeof ISP_DATA !== 'undefined' && ISP_DATA.principios_activos) {
-             Object.keys(ISP_DATA.principios_activos).forEach(pa => {
-               pa.split(/\s+/).forEach(w => knownPA.add(w));
-             });
-           }
-           
-           words.forEach(w => {
-             if (normQ.includes(w)) return; // Si el usuario lo pidió explícitamente, no hay penalidad
-             if (ignoreList.includes(w)) return; // Ignorar unidades de medida
-             if (knownPA.has(w)) return; // No penalizar principios activos conocidos (ej: "levotiroxina" junto a "eutirox")
-             if (w.length <= 2) return; // Ignorar palabras muy cortas (conectores, etc.)
-             
-             // Castigo severo SOLO para modificadores que cambian el tipo de droga/paciente
-             if (UNWANTED_MODIFIERS.includes(w)) {
-                penalty += 100000;
-             } else if (!isPA) {
-               // Penalización suave para palabras extra en marcas (contexto farmacéutico legítimo)
-               if (/^\d+$/.test(w)) penalty += 2000;
-               else penalty += 5000;
-             }
-           });
-           return penalty;
-        };
-
-        const scoreA = getPenaltyScore(a.nombre);
-        const scoreB = getPenaltyScore(b.nombre);
-
-        if (scoreA !== scoreB) {
-           return scoreA - scoreB;
-        }
-      }
-      return parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio);
-    });
+    exactMatches.sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
     return exactMatches[0];
   }
 
-  // TIER 2: Fallback Inteligente a Bioequivalente / Principio Activo
-  // Si la farmacia no tiene la marca exacta, busca el principio activo equivalente respetando dosis y forma.
+  // TIER 2: Fallback Inteligente cuando se busca por Principio Activo (ej: rupatadina en Ahumada que solo titula como Rupax/Rexanel)
   const normQuery = normalizeSearchText(searchProd);
   const queryNums = normQuery.split(/\s+/).filter(tok => /^\d+$/.test(tok));
   
-  let fallbackCandidates = [];
-  
-  // 1. Intentar resolver la marca a Principio Activo oficial ISP
-  let paTerm = null;
-  if (typeof window !== "undefined" && window.ISPEngine && window.ISPEngine.resolveTerm) {
-    const res = window.ISPEngine.resolveTerm(searchProd);
-    if (res && res.encontrado && res.principio_activo) {
-      paTerm = normalizeSearchText(res.principio_activo);
+  let fallbackCandidates = items;
+  if (queryNums.length > 0) {
+    const doseMatches = items.filter(item => {
+      const prodNums = normalizeSearchText(item.nombre).match(/\b\d+\b/g) || [];
+      return queryNums.some(num => prodNums.includes(num));
+    });
+    if (doseMatches.length > 0) {
+      fallbackCandidates = doseMatches;
     }
   }
 
-  if (paTerm) {
-    fallbackCandidates = items.filter(item => {
-      const np = normalizeSearchText(item.nombre);
-      // Debe contener el principio activo
-      if (!np.includes(paTerm)) return false;
-      // Debe respetar dosis si se especificó
-      if (queryNums.length > 0) {
-        const prodNums = np.match(/\b\d+\b/g) || [];
-        if (!queryNums.some(num => prodNums.includes(num))) return false;
-      }
-      return true;
-    });
-  }
-
-  // 2. Si no se resolvió por ISP pero hay dosis, buscar coincidencia estricta de dosis
-  if (fallbackCandidates.length === 0 && queryNums.length > 0) {
-    fallbackCandidates = items.filter(item => {
-      const np = normalizeSearchText(item.nombre);
-      const prodNums = np.match(/\b\d+\b/g) || [];
-      return queryNums.some(num => prodNums.includes(num));
-    });
-  }
-
-  if (fallbackCandidates.length > 0) {
-    fallbackCandidates.sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
-    return fallbackCandidates[0];
-  }
-
-  // Si no hay coincidencias de marca ni principio activo/dosis, marcar Sin Stock
-  return null;
+  fallbackCandidates.sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
+  return fallbackCandidates[0];
 }
 
 
@@ -480,7 +394,7 @@ function renderRecipeComparison(receta, queryList) {
           ${pharmacy.fuente}
         </div>
         <span class="rank-badge ${isWinner ? "rank-winner" : "rank-other"}">
-          #${idx + 1}
+          ${isWinner ? "🏆 Más Económica" : `#${idx + 1}`}
         </span>
       </div>
 
@@ -502,7 +416,7 @@ function renderRecipeComparison(receta, queryList) {
                 </span>
                 ${item.bestItem && item.bestItem.url ? `
                   <a href="${item.bestItem.url}" target="_blank" rel="noopener noreferrer" class="icon-link-btn" title="Ver producto en la farmacia">
-                    VER ↗
+                    ↗
                   </a>
                 ` : `<span class="icon-placeholder"></span>`}
               </div>
@@ -527,93 +441,40 @@ function escapeHtml(str) {
     .replace(/'/g, "&#039;");
 }
 
-function showSearchBannerAlert(msg, isCooldown = false, seconds = 15) {
-  const existing = document.getElementById("search-validation-banner");
-  if (existing) existing.remove();
-
-  const banner = document.createElement("div");
-  banner.id = "search-validation-banner";
-  
-  if (isCooldown) {
-    banner.style.cssText = "background: #eff6ff; border: 1.5px solid #bfdbfe; color: #1d4ed8; padding: 10px 16px; border-radius: 10px; font-weight: 700; font-size: 0.92rem; margin: 14px auto; max-width: 600px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 3px 10px rgba(29, 78, 216, 0.06);";
-    let rem = seconds;
-    banner.innerHTML = `<span>⏳</span> <span>Espera <b>${rem}s</b> antes de volver a buscar.</span>`;
-    searchBtn.disabled = true;
-    
-    const interval = setInterval(() => {
-      rem--;
-      if (rem <= 0) {
-        clearInterval(interval);
-        banner.remove();
-        searchBtn.disabled = false;
-      } else {
-        banner.innerHTML = `<span>⏳</span> <span>Espera <b>${rem}s</b> antes de volver a buscar.</span>`;
-      }
-    }, 1000);
-  } else {
-    banner.style.cssText = "background: #fef2f2; border: 1.5px solid #fecaca; color: #b91c1c; padding: 10px 16px; border-radius: 10px; font-weight: 700; font-size: 0.92rem; margin: 14px auto; max-width: 600px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 3px 10px rgba(239, 68, 68, 0.06);";
-    banner.innerHTML = `<span>⚠️</span> <span>${msg}</span>`;
-    setTimeout(() => {
-      if (banner && banner.parentNode) banner.remove();
-    }, 4000);
-  }
-
-  if (searchForm) {
-    searchForm.insertAdjacentElement("afterend", banner);
-  }
-}
-
 searchForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const rawQuery = searchInput.value.trim();
   if (!rawQuery) return;
 
-  // 1. Candado Cooldown Anti-Spam (8 clics en 30s)
-  if (!window._searchTimestamps) window._searchTimestamps = [];
-  const now = Date.now();
-  window._searchTimestamps = window._searchTimestamps.filter(t => now - t < 30000);
-  if (window._searchTimestamps.length >= 8) {
-    showSearchBannerAlert("", true, 15);
-    return;
-  }
-  window._searchTimestamps.push(now);
-
   let queryItems = rawQuery.split(/[,;\n]+/).map(s => s.trim()).filter(Boolean);
-  if (queryItems.length === 0) return;
 
-  // 2. Candado Máximo 10 medicamentos por receta
-  if (queryItems.length > 10) {
-    showSearchBannerAlert("Máximo 10 medicamentos por receta.");
+  // Validación de texto no válido o copia de instrucciones
+  const normalizedQuery = rawQuery.toLowerCase();
+  const invalidPhrases = [
+    "ingresa los medicamentos",
+    "separados por coma",
+    "compara precios",
+    "maximo 5 medicamentos",
+    "comparador de farmacias",
+    "ej:"
+  ];
+  const isInstructional = invalidPhrases.some(phrase => normalizedQuery.includes(phrase));
+  const isSentence = queryItems.length === 1 && queryItems[0].split(/\s+/).length >= 4 && !/\d+\s*(mg|g|ml|mcg|comprimidos|capsulas)/i.test(queryItems[0]);
+
+  if (isInstructional || isSentence) {
+    showErrorStatus("⚠️ Por favor ingresa nombres de medicamentos válidos separados por coma (ej: paracetamol, omeprazol).");
+    setTimeout(() => { statusBar.style.display = "none"; }, 4000);
     return;
   }
 
-  // 3. Validación de cada término
-  const charRegex = /^[a-zA-Z0-9áéíóúñÁÉÍÓÚÑ\s\.\,\%\-\(\)\/]+$/;
-  const letterRegex = /[a-zA-ZáéíóúñÁÉÍÓÚÑ]/g;
-
-  for (let item of queryItems) {
-    if (item.length > 50) {
-      showSearchBannerAlert("Texto muy largo. Ingresa solo el nombre del medicamento.");
-      return;
-    }
-    if (item.length < 2) {
-      showSearchBannerAlert("Medicamento no válido. Revisa lo escrito.");
-      return;
-    }
-    if (!charRegex.test(item)) {
-      showSearchBannerAlert("Medicamento no válido. Revisa lo escrito.");
-      return;
-    }
-    const letters = item.match(letterRegex);
-    if (!letters || letters.length < 2) {
-      showSearchBannerAlert("Medicamento no válido. Revisa lo escrito.");
-      return;
-    }
+  // Limitar a 10 medicamentos máximo
+  if (queryItems.length > 10) {
+    queryItems = queryItems.slice(0, 10);
+    searchInput.value = queryItems.join(", ");
+    showErrorStatus("⚠️ Máximo 10 medicamentos por búsqueda. Se tomaron los primeros 10.");
+    setTimeout(() => { statusBar.style.display = "none"; }, 3500);
   }
 
-  // Limpiar cualquier banner de error previo antes de buscar
-  const prevBanner = document.getElementById("search-validation-banner");
-  if (prevBanner) prevBanner.remove();
 
   const isMultiple = queryItems.length > 1;
 
@@ -627,10 +488,7 @@ searchForm.addEventListener("submit", async (e) => {
   try {
     const fetchPromise = fetch(`${API}/api/buscar-receta?q=${encodeURIComponent(queryItems.join(","))}`)
       .then(async res => {
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.detail || `Error del servidor (HTTP ${res.status})`);
-        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
         return await res.json();
       });
     const [data] = await Promise.all([fetchPromise, minWaitPromise]);
@@ -639,8 +497,7 @@ searchForm.addEventListener("submit", async (e) => {
       renderRecipeComparison(data.receta, queryItems); 
     }
   } catch (err) {
-    stopWaitingAnimation();
-    showSearchBannerAlert(err.message.replace(/^Error:\s*/i, ""));
+    showErrorStatus(`Error conectando con el backend: ${err.message}`);
   } finally {
     searchBtn.disabled = false;
     searchBtn.querySelector(".btn-text").textContent = "Comparar Farmacias";
