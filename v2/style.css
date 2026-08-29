@@ -2773,7 +2773,7 @@ body {
   }
 
   .pharmacy-badge-title {
-    font-size: 0.88rem !important;
+    font-size: 0.98rem !important;
     font-weight: 800 !important;
     display: flex !important;
     align-items: center !important;
@@ -2783,7 +2783,7 @@ body {
     gap: 4px !important;
     line-height: 1.15 !important;
     width: 100% !important;
-    padding: 0 22px !important;
+    padding: 0 18px !important;
     box-sizing: border-box !important;
   }
 
