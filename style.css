@@ -1672,7 +1672,7 @@ body {
 
 
 
-  font-weight: 500;
+  font-weight: 700;
 
 
 
@@ -1836,7 +1836,7 @@ body {
 
 
 
-  padding: 8px 10px;
+  padding: 8px 12px;
 
 
 
@@ -1844,21 +1844,26 @@ body {
 
 
 
-  flex-direction: column;
+  align-items: center;
 
 
 
-  justify-content: space-between;
+  height: 50px;
 
 
 
-  height: 68px;
+  min-height: 50px;
 
 
 
-  min-height: 68px;
-  max-height: 68px;
+  max-height: 50px;
+
+
+
   box-sizing: border-box;
+
+
+
 }
 
 
@@ -1884,13 +1889,29 @@ body {
 
 
 .recipe-item-head {
+
+
+
   width: 100%;
+
+
+
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+
+
+
   justify-content: space-between;
-  height: 100%;
-  gap: 4px;
+
+
+
+  align-items: center;
+
+
+
+  gap: 8px;
+
+
+
 }
 
 
@@ -1900,21 +1921,49 @@ body {
 
 
 .recipe-prod-tag {
+
+
+
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+
+
   font-size: 0.90rem;
+
+
+
   font-weight: 600;
+
+
+
   text-transform: uppercase;
+
+
+
   color: #0c1e3d;
+
+
+
   letter-spacing: 0.01em;
+
+
+
   white-space: nowrap;
+
+
+
   overflow: hidden;
+
+
+
   text-overflow: ellipsis;
-  width: 100%;
-  display: block;
-  line-height: 1.35;
-  padding-top: 1px;
-  padding-bottom: 2px;
-  box-sizing: border-box;
+
+
+
+  flex: 1;
+
+
+
 }
 
 
@@ -1924,11 +1973,29 @@ body {
 
 
 .recipe-item-right {
+
+
+
   display: flex;
+
+
+
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  line-height: 1;
+
+
+
+  justify-content: flex-end;
+
+
+
+  gap: 8px;
+
+
+
+  flex-shrink: 0;
+
+
+
 }
 
 
@@ -1938,25 +2005,73 @@ body {
 
 
 .icon-link-btn {
+
+
+
   display: inline-flex;
+
+
+
   align-items: center;
+
+
+
   justify-content: center;
-  gap: 3px;
-  height: 25px;
-  padding: 0 7px;
-  min-width: auto;
-  background: #3b82f6; /* Azul opaco/mate suave */
-  border: none;
-  color: #ffffff;      /* Letra y flecha blanca */
-  border-radius: 6px;
+
+
+
+  width: 28px;
+
+
+
+  min-width: 28px;
+
+
+
+  height: 28px;
+
+
+
+  background: #f8fafc;
+
+
+
+  border: 1.8px solid #94a3b8;
+
+
+
+  color: #2563eb;
+
+
+
+  border-radius: 7px;
+
+
+
   text-decoration: none;
-  font-size: 0.72rem;
-  font-weight: 700;
+
+
+
+  font-size: 1.05rem;
+
+
+
+  font-weight: 800;
+
+
+
   transition: all 0.15s ease;
+
+
+
   line-height: 1;
+
+
+
   box-sizing: border-box;
-  box-shadow: 0 1px 3px rgba(59, 130, 246, 0.25);
-  white-space: nowrap;
+
+
+
 }
 
 
@@ -1966,8 +2081,27 @@ body {
 
 
 .icon-link-btn:hover {
+
+
+
   background: #2563eb;
+
+
+
+  border-color: #2563eb;
+
+
+
   color: #ffffff;
+
+
+
+  transform: translateY(-1px) scale(1.05);
+
+
+
+  box-shadow: 0 3px 6px rgba(37, 99, 235, 0.3);
+
 
 
 }
@@ -2007,15 +2141,45 @@ body {
 
 
 .recipe-prod-price {
+
+
+
   font-size: 1.08rem;
-  font-weight: 500;
-  color: #000000;
+
+
+
+  font-weight: 700;
+
+
+
+  color: #18181b;
+
+
+
   white-space: nowrap;
+
+
+
   text-align: right;
+
+
+
   display: inline-flex;
+
+
+
   align-items: center;
+
+
+
   justify-content: flex-end;
+
+
+
   gap: 4px;
+
+
+
 }
 
 
@@ -2389,11 +2553,13 @@ body {
 
 
   background: #f0fdf4;
-  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.12);
-}
 
-.cheapest-item .recipe-prod-tag {
-  font-weight: 800 !important;
+
+
+  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.12);
+
+
+
 }
 
 
@@ -2756,63 +2922,56 @@ body {
 
 
 
-  /* Cabecera móvil: Título 100% CENTRADO con LETRA GRANDE (1.05rem) y Badge en esquina */
+  /* Cabecera limpia con altura fija */
+
   .col-header {
-    position: relative !important;
     padding: 8px 6px !important;
-    height: 56px !important;
-    min-height: 56px !important;
-    max-height: 56px !important;
+    height: auto !important;
+    min-height: 70px !important;
+    max-height: none !important;
     display: flex !important;
+    flex-direction: column !important;
     align-items: center !important;
     justify-content: center !important;
-    text-align: center !important;
+    gap: 6px !important;
     box-sizing: border-box !important;
   }
 
+
+
   .pharmacy-badge-title {
-    font-size: 1.05rem !important;
+    font-size: 0.95rem !important;
     font-weight: 800 !important;
-    display: flex !important;
-    align-items: center !important;
     justify-content: center !important;
     text-align: center !important;
     flex-wrap: wrap !important;
     gap: 4px !important;
     line-height: 1.15 !important;
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
     width: 100% !important;
-    padding: 0 16px !important;
-    box-sizing: border-box !important;
   }
 
   .pharmacy-logo {
-    width: 16px !important;
-    height: 16px !important;
-    flex-shrink: 0 !important;
+    width: 14px !important;
+    height: 14px !important;
   }
 
   .rank-badge {
-    position: absolute !important;
-    top: 6px !important;
-    right: 5px !important;
-    width: 24px !important;
-    min-width: 24px !important;
-    max-width: 24px !important;
+    position: static !important;
+    transform: none !important;
+    margin: 0 auto !important;
+    font-size: 0.72rem !important;
+    min-width: 28px !important;
     height: 20px !important;
-    min-height: 20px !important;
-    max-height: 20px !important;
-    padding: 0 !important;
+    padding: 0 4px !important;
     box-sizing: border-box !important;
-    border-radius: 5px !important;
-    font-size: 0.70rem !important;
+    border-radius: 6px !important;
     font-weight: 800 !important;
     line-height: 1 !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    text-align: center !important;
-    margin: 0 !important;
-    transform: none !important;
   }
 
 
@@ -2842,11 +3001,15 @@ body {
 
 
   .offer-label {
-    font-size: 0.68rem !important;
-    font-weight: 500 !important;
-    letter-spacing: 0.02em !important;
+
+    font-size: 0.58rem !important;
+
+    letter-spacing: 0 !important;
+
     margin-bottom: 2px !important;
+
     white-space: nowrap !important;
+
   }
 
 
@@ -2934,12 +3097,13 @@ body {
 
 
   .recipe-prod-tag {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
-    font-size: 0.74rem !important;
+
+    font-size: 0.72rem !important;
+
     font-weight: 800 !important;
+
     color: #334155 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.01em !important;
+
     white-space: nowrap !important;
 
     overflow: hidden !important;
@@ -2973,25 +3137,25 @@ body {
 
 
   .recipe-prod-price {
-    font-size: 0.94rem !important;
-    font-weight: 500 !important;
-    color: #000000 !important;
+
+    font-size: 0.90rem !important;
+
+    font-weight: 800 !important;
+
     line-height: 1 !important;
+
   }
 
-  .recipe-prod-price.cheapest-price {
-    font-weight: 800 !important;
-    color: #000000 !important;
-  }
+
 
   .icon-link-btn {
-    height: 24px !important;
-    padding: 0 6px !important;
-    font-size: 0.68rem !important;
-    font-weight: 700 !important;
-    border-radius: 5px !important;
-    background: #3b82f6 !important;
-    color: #ffffff !important;
+
+    padding: 2px 5px !important;
+
+    font-size: 0.70rem !important;
+
+    border-radius: 4px !important;
+
   }
 
 }
