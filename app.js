@@ -186,6 +186,8 @@ function isOneLetterTypo(wordA, wordB) {
   if (wordA === wordB) return true;
   // Candado 1: Longitud mínima de 9 caracteres
   if (wordA.length < 9 || wordB.length < 9) return false;
+  // Candado de Números: Solo aplica a letras alfabéticas puras (NUNCA a números o dosis)
+  if (/\d/.test(wordA) || /\d/.test(wordB)) return false;
   // Candado 2: Prefijo idéntico de 3 letras
   if (wordA.slice(0, 3) !== wordB.slice(0, 3)) return false;
   // Candado 3: Diferencia de longitud máx 1
