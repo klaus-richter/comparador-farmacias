@@ -2,7 +2,7 @@
   "version": "1.0.0",
   "pais": "Chile",
   "fuente_oficial": "Instituto de Salud Pública (ISP)",
-  "total_principios_activos": 83,
+  "total_principios_activos": 85,
   "total_marcas_indexadas": 539,
   "principios_activos": {
     "rupatadina": {
@@ -1881,6 +1881,51 @@
       ],
       "formas": [
         "comprimidos recubiertos"
+      ],
+      "bioequivalente": true
+    },
+    "eszopiclona": {
+      "nombre_oficial": "Eszopiclona",
+      "clase_terapeutica": "Hipnótico y sedante no benzodiacepínico",
+      "marcas": [
+        "eszopiclona",
+        "eszopilclona",
+        "eszop",
+        "nirvan",
+        "noptic",
+        "valnoc",
+        "zopinom",
+        "plessir",
+        "zopilon"
+      ],
+      "dosis_comunes": [
+        "2 mg",
+        "3 mg"
+      ],
+      "formas": [
+        "comprimidos",
+        "recubiertos"
+      ],
+      "bioequivalente": true
+    },
+    "zopiclona": {
+      "nombre_oficial": "Zopiclona",
+      "clase_terapeutica": "Hipnótico no benzodiacepínico",
+      "marcas": [
+        "zopiclona",
+        "zometic",
+        "foltran",
+        "limovan",
+        "datolan",
+        "siesta",
+        "insom"
+      ],
+      "dosis_comunes": [
+        "7.5 mg"
+      ],
+      "formas": [
+        "comprimidos",
+        "recubiertos"
       ],
       "bioequivalente": true
     }
