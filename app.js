@@ -325,7 +325,7 @@ function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
         const scoreA = getPenaltyScore(a.nombre);
         const scoreB = getPenaltyScore(b.nombre);
 
-        if (scoreA !== scoreB) {
+        if (Math.abs(scoreA - scoreB) >= 50000) {
            return scoreA - scoreB;
         }
       }
