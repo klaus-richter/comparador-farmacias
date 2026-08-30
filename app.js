@@ -180,13 +180,46 @@ function normalizeSearchText(text) {
   return t.replace(/\s+/g, ' ').trim();
 }
 
-function matchProductInteligente(prodName, searchQuery) {
-  // 1. Usar motor semántico del ISP como fuente ÚNICA de verdad si está disponible
-  if (typeof window !== "undefined" && window.ISPEngine) {
-    return window.ISPEngine.matchProductAgainstQuery(prodName, searchQuery);
-  }
+// Algoritmo de 5 Candados para tolerar pifias de 1 sola letra en palabras largas (>= 8 letras)
+function isOneLetterTypo(wordA, wordB) {
+  if (!wordA || !wordB) return false;
+  if (wordA === wordB) return true;
+  // Candado 1: Longitud mínima de 8 caracteres
+  if (wordA.length < 8 || wordB.length < 8) return false;
+  // Candado 2: Prefijo idéntico de 3 letras
+  if (wordA.slice(0, 3) !== wordB.slice(0, 3)) return false;
+  // Candado 3: Diferencia de longitud máx 1
+  if (Math.abs(wordA.length - wordB.length) > 1) return false;
 
-  // 2. Fallback heurístico léxico (SOLO si el motor no cargó por algún motivo)
+  let edits = 0;
+  let i = 0, j = 0;
+  while (i < wordA.length && j < wordB.length) {
+    if (wordA[i] === wordB[j]) {
+      i++;
+      j++;
+    } else {
+      edits++;
+      if (edits > 1) return false;
+      if (wordA.length > wordB.length) {
+        i++;
+      } else if (wordB.length > wordA.length) {
+        j++;
+      } else {
+        if (i + 1 < wordA.length && j + 1 < wordB.length && wordA[i] === wordB[j + 1] && wordA[i + 1] === wordB[j]) {
+          i += 2;
+          j += 2;
+        } else {
+          i++;
+          j++;
+        }
+      }
+    }
+  }
+  if (i < wordA.length || j < wordB.length) edits++;
+  return edits <= 1;
+}
+
+function matchProductInteligente(prodName, searchQuery) {
   const normProd = normalizeSearchText(prodName);
   const normQuery = normalizeSearchText(searchQuery);
 
@@ -195,13 +228,17 @@ function matchProductInteligente(prodName, searchQuery) {
 
   const keywords = qTokens.filter(tok => !/^\d+$/.test(tok) && !['comp', 'comprimidos', 'capsulas', 'mg', 'mcg', 'x'].includes(tok));
 
+  // 1. Candado de Palabra Clave: Coincidencia exacta O pifia de 1 letra en palabra larga (>= 8 letras)
   if (keywords.length > 0) {
     const mainWord = keywords[0];
-    if (!normProd.includes(mainWord)) {
+    const prodWords = normProd.split(/\s+/);
+    const hasMatch = prodWords.some(pw => pw.includes(mainWord) || mainWord.includes(pw) || isOneLetterTypo(pw, mainWord));
+    if (!hasMatch) {
       return false;
     }
   }
 
+  // 2. Candado de Dosis (Inviolable)
   const queryNums = qTokens.filter(tok => /^\d+$/.test(tok));
   if (queryNums.length > 0) {
     const prodNums = normProd.match(/\b\d+\b/g) || [];
