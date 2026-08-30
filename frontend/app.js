@@ -260,11 +260,21 @@ function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
 
   if (items.length === 0) return null;
 
-  // TIER 1: Coincidencia inteligente usando el motor del ISP
   const exactMatches = items.filter(item => matchProductInteligente(item.nombre, searchProd));
   if (exactMatches.length > 0) {
     exactMatches.sort((a, b) => {
-      const normQ = normalizeSearchText(searchProd).split(/\s+/);
+      const fullNormQ = normalizeSearchText(searchProd);
+      const normA = normalizeSearchText(a.nombre);
+      const normB = normalizeSearchText(b.nombre);
+
+      // 🏆 PRIORIDAD MÁXIMA: Frase Consecutiva / N-Gram (ej: "similac 2" o "similac etapa 2")
+      const isPhraseA = normA.includes(fullNormQ) || (fullNormQ.includes(" ") && normA.includes(fullNormQ.replace(/\s+/g, " etapa ")));
+      const isPhraseB = normB.includes(fullNormQ) || (fullNormQ.includes(" ") && normB.includes(fullNormQ.replace(/\s+/g, " etapa ")));
+
+      if (isPhraseA && !isPhraseB) return -1;
+      if (!isPhraseA && isPhraseB) return 1;
+
+      const normQ = fullNormQ.split(/\s+/);
 
       // Penalizacion Inteligente de "Apellidos" y Variantes
       if (normQ.length > 0) {
