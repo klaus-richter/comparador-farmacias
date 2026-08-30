@@ -169,6 +169,8 @@ function normalizeSearchText(text) {
   let t = text.toLowerCase();
   // Separar números de unidades: 100mcg -> 100 mcg, 500mg -> 500 mg, 100comprimidos -> 100 comprimidos
   t = t.replace(/(\d+)\s*(mg|mcg|g|ml|comp|comprimidos|capsulas|sobres)/gi, '$1 $2');
+  // Corregir erratas frecuentes de catálogo y tipeo
+  t = t.replace(/eszopilclona/g, 'eszopiclona').replace(/ezsoplicona/g, 'eszopiclona');
   // Normalizar acentos
   t = t.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   // Normalizar fonética para i/y, b/v, z/s
