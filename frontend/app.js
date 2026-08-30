@@ -290,33 +290,15 @@ function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
         }
         
         const UNWANTED_MODIFIERS = ['infantil', 'pediatrico', 'pediátrico', 'jarabe', 'gotas', 'suspension', 'supositorios', 'fol', 'forte', 'plus', 'sr', 'xr', 'lp', 'cd', 'ap', 'd', 'c', 'dia', 'noche', 'mujer', 'hombre'];
-        const ignoreList = ['mg', 'mcg', 'g', 'ml', 'ui', 'u', 'comp', 'comprimidos', 'capsulas', 'grageas', 'jeringas', 'ampollas', 'sobres', 'x', 'cm', 'l', 'recubiertos', 'recubierto'];
         
         const getPenaltyScore = (prodName) => {
            let penalty = 0;
            const words = normalizeSearchText(prodName).split(/\s+/);
-           
-           // Construir set de principios activos conocidos para no penalizarlos
-           let knownPA = new Set();
-           if (typeof ISP_DATA !== 'undefined' && ISP_DATA.principios_activos) {
-             Object.keys(ISP_DATA.principios_activos).forEach(pa => {
-               pa.split(/\s+/).forEach(w => knownPA.add(w));
-             });
-           }
-           
            words.forEach(w => {
              if (normQ.includes(w)) return; // Si el usuario lo pidió explícitamente, no hay penalidad
-             if (ignoreList.includes(w)) return; // Ignorar unidades de medida
-             if (knownPA.has(w)) return; // No penalizar principios activos conocidos (ej: "levotiroxina" junto a "eutirox")
-             if (w.length <= 2) return; // Ignorar palabras muy cortas (conectores, etc.)
-             
-             // Castigo severo SOLO para modificadores que cambian el tipo de droga/paciente
+             // Castigo severo ÚNICA Y EXCLUSIVAMENTE para modificadores que cambian el paciente o droga
              if (UNWANTED_MODIFIERS.includes(w)) {
                 penalty += 100000;
-             } else if (!isPA) {
-               // Penalización suave para palabras extra en marcas (contexto farmacéutico legítimo)
-               if (/^\d+$/.test(w)) penalty += 2000;
-               else penalty += 5000;
              }
            });
            return penalty;
