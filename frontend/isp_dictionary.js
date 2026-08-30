@@ -1,10 +1,9 @@
-// Diccionario Farmacéutico Oficial ISP Chile
-// Puente Semántico para resolución de Marca -> Principio Activo
+// Diccionario Oficial ISP Chile
 const ISP_DATA = {
   "version": "1.0.0",
   "pais": "Chile",
   "fuente_oficial": "Instituto de Salud Pública (ISP)",
-  "total_principios_activos": 83,
+  "total_principios_activos": 85,
   "total_marcas_indexadas": 539,
   "principios_activos": {
     "rupatadina": {
@@ -1885,6 +1884,51 @@ const ISP_DATA = {
         "comprimidos recubiertos"
       ],
       "bioequivalente": true
+    },
+    "eszopiclona": {
+      "nombre_oficial": "Eszopiclona",
+      "clase_terapeutica": "Hipnótico y sedante no benzodiacepínico",
+      "marcas": [
+        "eszopiclona",
+        "eszopilclona",
+        "eszop",
+        "nirvan",
+        "noptic",
+        "valnoc",
+        "zopinom",
+        "plessir",
+        "zopilon"
+      ],
+      "dosis_comunes": [
+        "2 mg",
+        "3 mg"
+      ],
+      "formas": [
+        "comprimidos",
+        "recubiertos"
+      ],
+      "bioequivalente": true
+    },
+    "zopiclona": {
+      "nombre_oficial": "Zopiclona",
+      "clase_terapeutica": "Hipnótico no benzodiacepínico",
+      "marcas": [
+        "zopiclona",
+        "zometic",
+        "foltran",
+        "limovan",
+        "datolan",
+        "siesta",
+        "insom"
+      ],
+      "dosis_comunes": [
+        "7.5 mg"
+      ],
+      "formas": [
+        "comprimidos",
+        "recubiertos"
+      ],
+      "bioequivalente": true
     }
   },
   "marcas_a_principio": {
@@ -2430,120 +2474,4 @@ const ISP_DATA = {
   }
 };
 
-const FORM_CATEGORIES = {
-  "nasal": {
-    "keywords": ["nasal", "spray", "inhalador", "nebulizador", "puff", "dosis", "aerosol", "gotas nasales"],
-    "conflicts": ["crema", "gel", "pomada", "unguento", "dermico", "dermica", "comprimidos", "capsulas", "jarabe", "ovulos"]
-  },
-  "crema": {
-    "keywords": ["crema", "unguento", "pomada", "dermico", "dermica", "gel", "emulgel", "topico", "topica"],
-    "conflicts": ["nasal", "spray", "jarabe", "comprimidos", "capsulas", "gotas", "inhalador", "ovulos"]
-  },
-  "gel": {
-    "keywords": ["gel", "emulgel", "topico", "topica", "crema", "unguento"],
-    "conflicts": ["nasal", "jarabe", "comprimidos", "capsulas", "gotas", "inhalador"]
-  },
-  "jarabe": {
-    "keywords": ["jarabe", "suspension", "solucion oral", "elixir"],
-    "conflicts": ["comprimidos", "capsulas", "crema", "gel", "pomada", "unguento", "spray", "nasal", "ovulos"]
-  },
-  "gotas": {
-    "keywords": ["gotas", "solucion oral", "solucion oftalmica", "oftalmico", "otico", "colirio"],
-    "conflicts": ["comprimidos", "capsulas", "crema", "pomada", "unguento"]
-  },
-  "comprimidos": {
-    "keywords": ["comprimidos", "capsulas", "tabletas", "grajeas", "comp", "sobres", "caps", "recubiertos"],
-    "conflicts": ["jarabe", "crema", "gel", "pomada", "unguento", "spray", "nasal", "gotas"]
-  }
-};
 
-const ISPEngineClient = {
-  normalize: function(text) {
-    if (!text) return "";
-    let t = text.toLowerCase().trim();
-    t = t.replace(/(\d+)\s*(mg|mcg|g|ml|comp|comprimidos|capsulas|sobres)/gi, '$1 $2');
-    t = t.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    t = t.replace(/y/g, 'i').replace(/v/g, 'b').replace(/z/g, 's');
-    t = t.replace(/[^\w\s]/g, ' ');
-    return t.replace(/\s+/g, ' ').trim();
-  },
-
-  resolveTerm: function(term) {
-    const norm = this.normalize(term);
-    const words = norm.split(/\s+/);
-    const activos = ISP_DATA.principios_activos || {};
-    const marcas = ISP_DATA.marcas_a_principio || {};
-
-    for (let len = words.length; len >= 1; len--) {
-      for (let i = 0; i <= words.length - len; i++) {
-        const cand = words.slice(i, i + len).join(" ");
-        
-        for (const [k, info] of Object.entries(activos)) {
-          if (this.normalize(k) === cand) {
-            return {
-              encontrado: true,
-              tipo: "PRINCIPIO_ACTIVO",
-              principio_activo: k,
-              nombre_oficial: info.nombre_oficial || k,
-              clase_terapeutica: info.clase_terapeutica || "",
-              bioequivalente: info.bioequivalente || false
-            };
-          }
-        }
-
-        for (const [m, pKey] of Object.entries(marcas)) {
-          if (this.normalize(m) === cand) {
-            const info = activos[pKey] || {};
-            return {
-              encontrado: true,
-              tipo: "MARCA_COMERCIAL",
-              marca_identificada: m,
-              principio_activo: pKey,
-              nombre_oficial: info.nombre_oficial || pKey,
-              clase_terapeutica: info.clase_terapeutica || "",
-              bioequivalente: info.bioequivalente || false
-            };
-          }
-        }
-      }
-    }
-
-    return { encontrado: false, tipo: "DESCONOCIDO", principio_activo: null };
-  },
-
-  matchProductAgainstQuery: function(productName, searchQuery) {
-    const normProd = this.normalize(productName);
-    const normQuery = this.normalize(searchQuery);
-
-    const qTokens = normQuery.split(/\s+/).filter(tok => tok.length >= 2);
-    
-    // 1. CANDADO DE DOSIS MÉDICA
-    const queryNums = qTokens.filter(tok => /^\d+$/.test(tok));
-    if (queryNums.length > 0) {
-      const prodNums = normProd.match(/\b\d+\b/g) || [];
-      if (!queryNums.some(num => prodNums.includes(num))) {
-        return false;
-      }
-    }
-
-    // 2. CANDADO DE FORMA FARMACÉUTICA
-    for (const [formKey, formInfo] of Object.entries(FORM_CATEGORIES)) {
-      if (normQuery.includes(formKey) || formInfo.keywords.some(kw => normQuery.split(/\s+/).includes(kw))) {
-        const prodWords = normProd.split(/\s+/);
-        if (formInfo.conflicts.some(cf => prodWords.includes(cf) || normProd.includes(cf))) {
-          return false;
-        }
-        if (!formInfo.keywords.some(kw => normProd.includes(kw))) {
-          return false;
-        }
-      }
-    }
-
-    // 3. MATCH INCLUSIVO (Sin restricciones de listas cerradas)
-    return true;
-  }
-};
-
-if (typeof window !== "undefined") {
-  window.ISPEngine = ISPEngineClient;
-}
