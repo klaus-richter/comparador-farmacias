@@ -269,9 +269,9 @@ function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
       const normA = normalizeSearchText(a.nombre);
       const normB = normalizeSearchText(b.nombre);
 
-      // 🏆 PRIORIDAD MÁXIMA: Frase Consecutiva / N-Gram (ej: "similac 2" o "similac etapa 2")
-      const isPhraseA = normA.includes(fullNormQ) || (fullNormQ.includes(" ") && normA.includes(fullNormQ.replace(/\s+/g, " etapa ")));
-      const isPhraseB = normB.includes(fullNormQ) || (fullNormQ.includes(" ") && normB.includes(fullNormQ.replace(/\s+/g, " etapa ")));
+      // 🏆 PRIORIDAD MÁXIMA: Frase Consecutiva Exacta (ej: "similac 2", "eutirox 100", "lertus cd")
+      const isPhraseA = normA.includes(fullNormQ);
+      const isPhraseB = normB.includes(fullNormQ);
 
       if (isPhraseA && !isPhraseB) return -1;
       if (!isPhraseA && isPhraseB) return 1;
