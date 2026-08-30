@@ -180,12 +180,12 @@ function normalizeSearchText(text) {
   return t.replace(/\s+/g, ' ').trim();
 }
 
-// Algoritmo de 5 Candados para tolerar pifias de 1 sola letra en palabras largas (>= 8 letras)
+// Algoritmo de 5 Candados para tolerar pifias de 1 sola letra en palabras largas (>= 9 letras)
 function isOneLetterTypo(wordA, wordB) {
   if (!wordA || !wordB) return false;
   if (wordA === wordB) return true;
-  // Candado 1: Longitud mínima de 8 caracteres
-  if (wordA.length < 8 || wordB.length < 8) return false;
+  // Candado 1: Longitud mínima de 9 caracteres
+  if (wordA.length < 9 || wordB.length < 9) return false;
   // Candado 2: Prefijo idéntico de 3 letras
   if (wordA.slice(0, 3) !== wordB.slice(0, 3)) return false;
   // Candado 3: Diferencia de longitud máx 1
