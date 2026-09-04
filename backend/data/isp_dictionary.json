@@ -1928,6 +1928,19 @@
         "recubiertos"
       ],
       "bioequivalente": true
+    },
+    "clotiazepam": {
+      "nombre_oficial": "Clotiazepam",
+      "clase_terapeutica": "Ansiolítico (Benzodiazepina)",
+      "marcas": [
+        "rize",
+        "zubam",
+        "betis",
+        "dilasedan",
+        "neuroval cd",
+        "planiden odt",
+        "planiden"
+      ]
     }
   },
   "marcas_a_principio": {
