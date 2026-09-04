@@ -9,7 +9,7 @@ from backend.scrapers.salcobrand import buscar_salcobrand
 # ── Resource blocking: reduce CPU/RAM/tiempo 40-60% sin romper CDNs esenciales ──
 _SKIP_TYPES = {"image", "media", "font"}
 _SKIP_DOMAINS = ["google-analytics", "facebook", "clarity", "hotjar",
-    "doubleclick", "datadog", "tiktok", "twitter", "ads"]
+    "doubleclick", "datadog", "tiktok", "twitter", "ads", "googletagmanager", "cloudfront", "instana", "appsflyer"]
 
 async def _block_resources(route):
     req = route.request
