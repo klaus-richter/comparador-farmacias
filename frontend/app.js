@@ -62,12 +62,12 @@ function startWaitingAnimation(query) {
   statusBar.style.display = "flex";
   statusBar.className = "status-bar info";
   spinner.style.display = "block";
-  currentPercent = 15;
+  currentPercent = 5;
   
-  statusTitle.innerHTML = `Buscando medicamentos... <span class="progress-pct" id="progress-pct">15%</span>`;
+  statusTitle.innerHTML = `Buscando medicamentos... <span class="progress-pct" id="progress-pct">5%</span>`;
   
   const fillEl = document.getElementById("progress-fill");
-  if (fillEl) fillEl.style.width = "15%";
+  if (fillEl) fillEl.style.width = "5%";
 
   let stepIndex = 0;
   statusStep.textContent = DYNAMIC_STEPS[0];
@@ -76,25 +76,28 @@ function startWaitingAnimation(query) {
   if (progressInterval) clearInterval(progressInterval);
   if (stepInterval) clearInterval(stepInterval);
 
-  // Progreso dinámico y rápido calibrado a los nuevos tiempos (avanza cada 450ms)
+  // Progreso lineal y progresivo calibrado a tiempos reales (~18-22 segundos)
   progressInterval = setInterval(() => {
-    if (currentPercent < 50) {
-      currentPercent += Math.floor(Math.random() * 5) + 4; // Rápido al inicio
-    } else if (currentPercent < 80) {
-      currentPercent += Math.floor(Math.random() * 4) + 2; // Medio
-    } else if (currentPercent < 95) {
-      currentPercent += Math.floor(Math.random() * 2) + 1; // Suave hacia el 95%
+    if (currentPercent < 35) {
+      currentPercent += 1.2; // 0s - 6s: avanza constante hacia 35%
+    } else if (currentPercent < 70) {
+      currentPercent += 0.9; // 6s - 14s: avanza constante hacia 70%
+    } else if (currentPercent < 88) {
+      currentPercent += 0.5; // 14s - 20s: avanza hacia 88%
+    } else if (currentPercent < 96) {
+      currentPercent += 0.15; // 20s en adelante: avanza suave sin congelarse
     }
-    if (currentPercent > 95) currentPercent = 95;
+    if (currentPercent > 96) currentPercent = 96;
 
+    const displayPct = Math.floor(currentPercent);
     const pctEl = document.getElementById("progress-pct");
-    if (pctEl) pctEl.textContent = `${currentPercent}%`;
+    if (pctEl) pctEl.textContent = `${displayPct}%`;
 
     const fillEl = document.getElementById("progress-fill");
-    if (fillEl) fillEl.style.width = `${currentPercent}%`;
-  }, 450);
+    if (fillEl) fillEl.style.width = `${displayPct}%`;
+  }, 250);
 
-  // Rotar textos informativos cada 2.8 segundos
+  // Rotar textos informativos cada 2.5 segundos
   stepInterval = setInterval(() => {
     stepIndex = (stepIndex + 1) % DYNAMIC_STEPS.length;
     statusStep.style.opacity = 0;
@@ -102,7 +105,7 @@ function startWaitingAnimation(query) {
       statusStep.textContent = DYNAMIC_STEPS[stepIndex];
       statusStep.style.opacity = 1;
     }, 150);
-  }, 2800);
+  }, 2500);
 }
 
 function stopWaitingAnimation() {
