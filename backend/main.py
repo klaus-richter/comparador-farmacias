@@ -130,12 +130,29 @@ async def buscar_un_producto(prod: str, force_refresh: bool = False):
             # Auto-healing selectivo: solo scrapear las farmacias que faltan
             try:
                 nuevos_items, nuevo_diag = await scrapear_farmacias_especificas(prod, missing)
+                
+                # Update cobertura with the new diagnostics
+                if "cobertura" not in cached:
+                    cached["cobertura"] = {"detalle": {}}
+                if "detalle" not in cached["cobertura"]:
+                    cached["cobertura"]["detalle"] = {}
+                
+                for farmacia, diag in nuevo_diag.items():
+                    cached["cobertura"]["detalle"][farmacia] = diag
+                
+                # Recalculate totals
+                detalle = cached["cobertura"]["detalle"]
+                cached["cobertura"]["con_stock"] = sum(1 for d in detalle.values() if d.get("status") == "OK")
+                cached["cobertura"]["sin_stock"] = sum(1 for d in detalle.values() if d.get("status") == "SIN_STOCK")
+                cached["cobertura"]["con_error"] = sum(1 for d in detalle.values() if d.get("status") == "ERROR")
+
                 if nuevos_items:
                     existing_results.extend(nuevos_items)
                     cached["resultados"] = existing_results
                     cached["total"] = len(existing_results)
-                    # Auto-reparar la base de datos para que quede permanente
-                    save_cached_results(prod, cached)
+
+                # Siempre guardamos el caché porque la cobertura pudo haber cambiado
+                save_cached_results(prod, cached)
                 return cached
             except Exception as e:
                 print(f"[AUTO-HEALING ERROR] {e}")
