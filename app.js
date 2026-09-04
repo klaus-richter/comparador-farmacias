@@ -76,18 +76,18 @@ function startWaitingAnimation(query) {
   if (progressInterval) clearInterval(progressInterval);
   if (stepInterval) clearInterval(stepInterval);
 
-  // Progreso lineal y progresivo calibrado a tiempos reales (~18-22 segundos)
+  // Progreso lineal y progresivo calibrado a tiempos reales (~18-20 segundos)
   progressInterval = setInterval(() => {
-    if (currentPercent < 35) {
-      currentPercent += 1.2; // 0s - 6s: avanza constante hacia 35%
-    } else if (currentPercent < 70) {
-      currentPercent += 0.9; // 6s - 14s: avanza constante hacia 70%
-    } else if (currentPercent < 88) {
-      currentPercent += 0.5; // 14s - 20s: avanza hacia 88%
-    } else if (currentPercent < 96) {
-      currentPercent += 0.15; // 20s en adelante: avanza suave sin congelarse
+    if (currentPercent < 45) {
+      currentPercent += 1.4; // 0s - 7s: avanza constante hacia 45%
+    } else if (currentPercent < 75) {
+      currentPercent += 1.0; // 7s - 14s: avanza constante hacia 75%
+    } else if (currentPercent < 92) {
+      currentPercent += 0.7; // 14s - 19s: avanza firme hacia 92%
+    } else if (currentPercent < 97) {
+      currentPercent += 0.25; // 19s en adelante: avanza hacia 97%
     }
-    if (currentPercent > 96) currentPercent = 96;
+    if (currentPercent > 97) currentPercent = 97;
 
     const displayPct = Math.floor(currentPercent);
     const pctEl = document.getElementById("progress-pct");
