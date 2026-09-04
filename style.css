@@ -84,7 +84,7 @@
 
   box-sizing: border-box;
 
-  border: 2.8px solid #111111;
+  border: 2.8px solid #0E6648;
 
   border-radius: 20px;
 
@@ -108,7 +108,7 @@
 
   background-color: #ffffff;
 
-  border-bottom: 2.8px solid #111111;
+  border-bottom: 2.8px solid #0E6648;
 
   box-sizing: border-box;
 
@@ -3357,7 +3357,7 @@ body {
     margin-right: 14px !important;
       margin-top: -4px !important;
 
-    border: 2.8px solid #111111 !important;
+    border: 2.8px solid #0E6648 !important;
 
   }
 
@@ -3680,7 +3680,7 @@ body {
     margin-right: 14px !important;
       margin-top: -4px !important;
 
-    border: 2.8px solid #111111 !important;
+    border: 2.8px solid #0E6648 !important;
 
   }
 
