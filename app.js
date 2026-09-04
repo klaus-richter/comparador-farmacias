@@ -344,10 +344,19 @@ function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
   }
 
   if (paTerm) {
+    // Obtener las marcas asociadas a este principio activo
+    let marcasPA = [];
+    if (typeof ISP_DATA !== 'undefined' && ISP_DATA.principios_activos && ISP_DATA.principios_activos[paTerm]) {
+        marcasPA = ISP_DATA.principios_activos[paTerm].marcas || [];
+    }
+
     fallbackCandidates = items.filter(item => {
       const np = normalizeSearchText(item.nombre);
-      // Debe contener el principio activo
-      if (!np.includes(paTerm)) return false;
+      // Debe contener el principio activo O alguna de sus marcas
+      const containsPA = np.includes(paTerm);
+      const containsMarca = marcasPA.some(m => np.includes(normalizeSearchText(m)));
+      
+      if (!containsPA && !containsMarca) return false;
       // Debe respetar dosis si se especificó
       if (queryNums.length > 0) {
         const queryHasQty = /\b(comp|comprimidos|capsulas|cap|sobres|caja|cajas|dosis)\b/i.test(normQuery);
