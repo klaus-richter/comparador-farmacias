@@ -351,8 +351,9 @@ async def scrapear_todas_las_farmacias(producto: str, max_retries: int = 1) -> D
     # Browser compartido para Ahumada y Cruz Verde (con proxy)
     browser = await get_shared_browser()
     proxy_config = None
+    use_proxy = os.environ.get("USE_PROXY", "false").lower() == "true"
     proxy_server = os.environ.get("PROXY_SERVER")
-    if proxy_server:
+    if use_proxy and proxy_server:
         proxy_config = {
             "server": proxy_server,
             "username": os.environ.get("PROXY_USERNAME"),
@@ -468,8 +469,9 @@ async def scrapear_farmacias_especificas(producto: str, nombres_farmacias: List[
     if needed_browser:
         browser = await get_shared_browser()
         proxy_config = None
+        use_proxy = os.environ.get("USE_PROXY", "false").lower() == "true"
         proxy_server = os.environ.get("PROXY_SERVER")
-        if proxy_server:
+        if use_proxy and proxy_server:
             proxy_config = {
                 "server": proxy_server,
                 "username": os.environ.get("PROXY_USERNAME"),
