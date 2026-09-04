@@ -168,7 +168,7 @@ function normalizeSearchText(text) {
   if (!text) return "";
   let t = text.toLowerCase();
   // Separar números de unidades: 100mcg -> 100 mcg, 500mg -> 500 mg, 100comprimidos -> 100 comprimidos
-  t = t.replace(/(\d+)\s*(mg|mcg|g|ml|comp|comprimidos|capsulas|sobres)/gi, '$1 $2');
+  t = t.replace(/(\d+)\s*(mg|mcg|ug|g|gr|ml|comp|comprimidos|capsulas|cap|sobres)/gi, '$1 $2');
   // Corregir erratas frecuentes de catálogo y tipeo
   t = t.replace(/eszopilclona/g, 'eszopiclona').replace(/ezsoplicona/g, 'eszopiclona');
   // Normalizar acentos
@@ -243,7 +243,18 @@ function matchProductInteligente(prodName, searchQuery) {
   // 2. Candado de Dosis (Inviolable)
   const queryNums = qTokens.filter(tok => /^\d+$/.test(tok));
   if (queryNums.length > 0) {
-    const prodNums = normProd.match(/\b\d+\b/g) || [];
+    const queryHasQty = /\b(comp|comprimidos|capsulas|cap|sobres|caja|cajas|dosis)\b/i.test(normQuery);
+    let cleanProd = normProd;
+    
+    // Si el usuario no especificó explícitamente palabras de cantidad, 
+    // removemos los números de cantidad del producto para evitar falsos positivos
+    // (Ej: Buscar "eutirox 50" y que haga match con el "50" de "Eutirox 25 mcg x 50 comprimidos")
+    if (!queryHasQty) {
+      cleanProd = cleanProd.replace(/(?:x\s*)?\b(\d+)\s*(?:comp|comprimidos|capsulas|cap|sobres|caja|cajas|dosis)\b/gi, '');
+      cleanProd = cleanProd.replace(/\bx\s*(\d+)\b/gi, '');
+    }
+    
+    const prodNums = cleanProd.match(/\b\d+\b/g) || [];
     if (!queryNums.some(num => prodNums.includes(num))) {
       return false;
     }
