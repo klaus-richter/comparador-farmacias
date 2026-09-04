@@ -83,6 +83,6 @@ async def buscar_salcobrand(producto: str, max_resultados: int = 20) -> List[Dic
             return items[:max_resultados]
         except Exception as e:
             print(f"[SALCOBRAND ERROR] {e}")
-            return []
+            raise
 
     return await asyncio.to_thread(_do_search)
