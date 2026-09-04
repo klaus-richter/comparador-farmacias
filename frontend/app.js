@@ -273,6 +273,37 @@ function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
 
   if (items.length === 0) return null;
 
+  // 1.5. REGLA MAESTRA DE PRINCIPIOS ACTIVOS:
+  // Si la búsqueda es un PRINCIPIO ACTIVO (ej: "clotiazepam", "paracetamol", "amoxicilina 500mg"):
+  // Confiamos en los resultados devueltos por la farmacia para esa droga,
+  // aplicando únicamente el Candado de Dosis (si el usuario especificó una dosis) y eligiendo el menor precio.
+  const isPA = typeof esPrincipioActivo === "function" && esPrincipioActivo(searchProd);
+  if (isPA) {
+    const normQ = normalizeSearchText(searchProd);
+    const qTokens = normQ.split(/\s+/).filter(tok => tok.length >= 2);
+    const queryNums = qTokens.filter(tok => /^\d+$/.test(tok));
+    const queryHasQty = /\b(comp|comprimidos|capsulas|cap|sobres|caja|cajas|dosis)\b/i.test(normQ);
+
+    let candidates = items;
+    if (queryNums.length > 0) {
+      candidates = items.filter(item => {
+        let cleanProd = normalizeSearchText(item.nombre);
+        if (!queryHasQty) {
+          cleanProd = cleanProd.replace(/(?:x\s*)?\b(\d+)\s*(?:comp|comprimidos|capsulas|cap|sobres|caja|cajas|dosis)\b/gi, '');
+          cleanProd = cleanProd.replace(/\bx\s*(\d+)\b/gi, '');
+        }
+        const prodNums = cleanProd.match(/\b\d+\b/g) || [];
+        return queryNums.some(num => prodNums.includes(num));
+      });
+    }
+
+    if (candidates.length > 0) {
+      candidates.sort((a, b) => parsePriceToNumber(a.precio) - parsePriceToNumber(b.precio));
+      return candidates[0];
+    }
+    return null; // Si ninguno cumple la dosis exigida, marcar sin stock
+  }
+
   const exactMatches = items.filter(item => matchProductInteligente(item.nombre, searchProd));
   if (exactMatches.length > 0) {
     exactMatches.sort((a, b) => {
@@ -327,56 +358,16 @@ function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
     return exactMatches[0];
   }
 
-  // TIER 2: Fallback Inteligente a Bioequivalente / Principio Activo
-  // Si la farmacia no tiene la marca exacta, busca el principio activo equivalente respetando dosis y forma.
+  // TIER 2: Fallback en Cascada cuando la farmacia NO tiene stock de la marca buscada:
+  // Ofrecer la mejor alternativa/bioequivalente devuelta por la farmacia respetando estrictamente el Candado de Dosis.
   const normQuery = normalizeSearchText(searchProd);
   const queryNums = normQuery.split(/\s+/).filter(tok => /^\d+$/.test(tok));
-  
-  let fallbackCandidates = [];
-  
-  // 1. Intentar resolver la marca a Principio Activo oficial ISP
-  let paTerm = null;
-  if (typeof window !== "undefined" && window.ISPEngine && window.ISPEngine.resolveTerm) {
-    const res = window.ISPEngine.resolveTerm(searchProd);
-    if (res && res.encontrado && res.principio_activo) {
-      paTerm = normalizeSearchText(res.principio_activo);
-    }
-  }
+  const queryHasQty = /\b(comp|comprimidos|capsulas|cap|sobres|caja|cajas|dosis)\b/i.test(normQuery);
 
-  if (paTerm) {
-    // Obtener las marcas asociadas a este principio activo
-    let marcasPA = [];
-    if (typeof ISP_DATA !== 'undefined' && ISP_DATA.principios_activos && ISP_DATA.principios_activos[paTerm]) {
-        marcasPA = ISP_DATA.principios_activos[paTerm].marcas || [];
-    }
-
+  let fallbackCandidates = items;
+  if (queryNums.length > 0) {
     fallbackCandidates = items.filter(item => {
       const np = normalizeSearchText(item.nombre);
-      // Debe contener el principio activo O alguna de sus marcas
-      const containsPA = np.includes(paTerm);
-      const containsMarca = marcasPA.some(m => np.includes(normalizeSearchText(m)));
-      
-      if (!containsPA && !containsMarca) return false;
-      // Debe respetar dosis si se especificó
-      if (queryNums.length > 0) {
-        const queryHasQty = /\b(comp|comprimidos|capsulas|cap|sobres|caja|cajas|dosis)\b/i.test(normQuery);
-        let cleanNp = np;
-        if (!queryHasQty) {
-          cleanNp = cleanNp.replace(/(?:x\s*)?\b(\d+)\s*(?:comp|comprimidos|capsulas|cap|sobres|caja|cajas|dosis)\b/gi, '');
-          cleanNp = cleanNp.replace(/\bx\s*(\d+)\b/gi, '');
-        }
-        const prodNums = cleanNp.match(/\b\d+\b/g) || [];
-        if (!queryNums.some(num => prodNums.includes(num))) return false;
-      }
-      return true;
-    });
-  }
-
-  // 2. Si no se resolvió por ISP pero hay dosis, buscar coincidencia estricta de dosis
-  if (fallbackCandidates.length === 0 && queryNums.length > 0) {
-    fallbackCandidates = items.filter(item => {
-      const np = normalizeSearchText(item.nombre);
-      const queryHasQty = /\b(comp|comprimidos|capsulas|cap|sobres|caja|cajas|dosis)\b/i.test(normQuery);
       let cleanNp = np;
       if (!queryHasQty) {
         cleanNp = cleanNp.replace(/(?:x\s*)?\b(\d+)\s*(?:comp|comprimidos|capsulas|cap|sobres|caja|cajas|dosis)\b/gi, '');
@@ -392,7 +383,7 @@ function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
     return fallbackCandidates[0];
   }
 
-  // Si no hay coincidencias de marca ni principio activo/dosis, marcar Sin Stock
+  // Si no hay coincidencias de marca ni alternativas que cumplan la dosis, marcar Sin Stock
   return null;
 }
 
