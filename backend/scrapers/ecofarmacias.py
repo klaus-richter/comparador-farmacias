@@ -71,5 +71,6 @@ async def buscar_ecofarmacias(producto: str, max_resultados: int = 20) -> list[d
 
     except Exception as e:
         print(f"Error en scraper Ecofarmacias: {e}")
+        raise
 
     return resultados
