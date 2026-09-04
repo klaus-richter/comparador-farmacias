@@ -10,6 +10,10 @@ API_KEY = "0259fe250b3be4b1326eb85e47aa7d81"
 INDEX = "sb_variant_production"
 
 def _get_opener():
+    use_proxy = os.environ.get("USE_PROXY", "false").lower() == "true"
+    if not use_proxy:
+        return None
+
     proxy_server = os.getenv("PROXY_SERVER")
     proxy_user = os.getenv("PROXY_USERNAME")
     proxy_pass = os.getenv("PROXY_PASSWORD")
