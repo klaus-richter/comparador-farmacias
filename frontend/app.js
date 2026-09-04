@@ -350,7 +350,13 @@ function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
       if (!np.includes(paTerm)) return false;
       // Debe respetar dosis si se especificó
       if (queryNums.length > 0) {
-        const prodNums = np.match(/\b\d+\b/g) || [];
+        const queryHasQty = /\b(comp|comprimidos|capsulas|cap|sobres|caja|cajas|dosis)\b/i.test(normQuery);
+        let cleanNp = np;
+        if (!queryHasQty) {
+          cleanNp = cleanNp.replace(/(?:x\s*)?\b(\d+)\s*(?:comp|comprimidos|capsulas|cap|sobres|caja|cajas|dosis)\b/gi, '');
+          cleanNp = cleanNp.replace(/\bx\s*(\d+)\b/gi, '');
+        }
+        const prodNums = cleanNp.match(/\b\d+\b/g) || [];
         if (!queryNums.some(num => prodNums.includes(num))) return false;
       }
       return true;
@@ -361,7 +367,13 @@ function getBestItemForPharmacy(allResults, targetPharmacy, searchProd) {
   if (fallbackCandidates.length === 0 && queryNums.length > 0) {
     fallbackCandidates = items.filter(item => {
       const np = normalizeSearchText(item.nombre);
-      const prodNums = np.match(/\b\d+\b/g) || [];
+      const queryHasQty = /\b(comp|comprimidos|capsulas|cap|sobres|caja|cajas|dosis)\b/i.test(normQuery);
+      let cleanNp = np;
+      if (!queryHasQty) {
+        cleanNp = cleanNp.replace(/(?:x\s*)?\b(\d+)\s*(?:comp|comprimidos|capsulas|cap|sobres|caja|cajas|dosis)\b/gi, '');
+        cleanNp = cleanNp.replace(/\bx\s*(\d+)\b/gi, '');
+      }
+      const prodNums = cleanNp.match(/\b\d+\b/g) || [];
       return queryNums.some(num => prodNums.includes(num));
     });
   }
