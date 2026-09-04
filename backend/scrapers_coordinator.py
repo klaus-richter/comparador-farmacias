@@ -61,7 +61,6 @@ async def get_shared_browser():
 
             _SHARED_BROWSER = await _PLAYWRIGHT_INSTANCE.chromium.launch(
                 headless=True,
-                proxy=proxy_config,
                 args=[
                     "--disable-blink-features=AutomationControlled",
                     "--disable-infobars",
@@ -81,7 +80,7 @@ async def get_shared_browser():
 async def _scrape_page_ahumada(page, producto: str) -> List[Dict[str, Any]]:
     url = f"https://www.farmaciasahumada.cl/search?q={producto}&search-button=&lang=default"
     await page.route("**/*", _block_resources)
-    await page.goto(url, wait_until="domcontentloaded", timeout=20000)
+    await page.goto(url, wait_until="domcontentloaded", timeout=30000)
     try:
         await page.wait_for_selector('.product-tile, .pdp-link, a[href*=".html"]', timeout=6000)
     except:
@@ -210,7 +209,7 @@ async def _fetch_drsimi_vtex(producto: str) -> List[Dict[str, Any]]:
             with urllib.request.urlopen(req, timeout=6) as r:
                 return json.loads(r.read().decode("utf-8"))
         except Exception:
-            return []
+            raise
 
     data = await asyncio.to_thread(_do_get)
     results = []
@@ -258,7 +257,7 @@ async def _scrape_page_cruzverde(page, producto: str) -> List[Dict[str, Any]]:
         except Exception:
             pass
 
-        await page.goto(url, wait_until="domcontentloaded", timeout=25000)
+        await page.goto(url, wait_until="domcontentloaded", timeout=30000)
         await page.wait_for_timeout(2000)
         
         # Si aparece el modal de comuna, darle click a aceptar o cerrarlo
@@ -312,7 +311,7 @@ async def _scrape_page_cruzverde(page, producto: str) -> List[Dict[str, Any]]:
         return items
     except Exception as e_cv:
         print(f"[CRUZ VERDE GLOBAL ERROR] {e_cv}")
-        return []
+        raise
 
 
 # Semáforo para serializar pestañas de Chromium a través del proxy residencial chileno
@@ -351,11 +350,21 @@ async def scrapear_todas_las_farmacias(producto: str, max_retries: int = 1) -> D
 
     # Browser compartido para Ahumada y Cruz Verde (con proxy)
     browser = await get_shared_browser()
+    proxy_config = None
+    proxy_server = os.environ.get("PROXY_SERVER")
+    if proxy_server:
+        proxy_config = {
+            "server": proxy_server,
+            "username": os.environ.get("PROXY_USERNAME"),
+            "password": os.environ.get("PROXY_PASSWORD"),
+        }
+
     context = await browser.new_context(
         user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         viewport={"width": 1280, "height": 800},
         locale="es-CL",
-        timezone_id="America/Santiago"
+        timezone_id="America/Santiago",
+        proxy=proxy_config
     )
     try:
         await context.add_cookies([
@@ -458,9 +467,19 @@ async def scrapear_farmacias_especificas(producto: str, nombres_farmacias: List[
     context = None
     if needed_browser:
         browser = await get_shared_browser()
+        proxy_config = None
+        proxy_server = os.environ.get("PROXY_SERVER")
+        if proxy_server:
+            proxy_config = {
+                "server": proxy_server,
+                "username": os.environ.get("PROXY_USERNAME"),
+                "password": os.environ.get("PROXY_PASSWORD"),
+            }
+
         context = await browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
-            viewport={"width": 1280, "height": 800}
+            viewport={"width": 1280, "height": 800},
+            proxy=proxy_config
         )
 
         for nombre, fn in needed_browser:
