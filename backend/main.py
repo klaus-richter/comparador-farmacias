@@ -172,6 +172,10 @@ async def security_status(request: Request):
     client_ip = request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for") or (request.client.host if request.client else "unknown")
     client_ip = client_ip.split(",")[0].strip()
     now = time.time()
+    no_cache_headers = {
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        "Pragma": "no-cache"
+    }
     if client_ip in _BLOCKED_IPS_STORE:
         unblock_time = _BLOCKED_IPS_STORE[client_ip]
         if now < unblock_time:
@@ -181,14 +185,7 @@ async def security_status(request: Request):
             }, request)
         else:
             del _BLOCKED_IPS_STORE[client_ip]
-    return JSONResponse(
-        status_code=200,
-        content={"blocked": False},
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, OPTIONS"
-        }
-    )
+    return JSONResponse(status_code=200, content={"blocked": False, "status": "ok"}, headers=no_cache_headers)
 
 
 
