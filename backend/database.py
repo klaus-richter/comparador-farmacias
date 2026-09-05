@@ -156,9 +156,9 @@ def log_search(
     max_price: Optional[int] = None,
     session_id: Optional[str] = None,
     total_results: int = 0,
-    results_json: Optional[Any] = None
+    raw_products_json: Optional[Any] = None
 ):
-    """Guarda un registro de la busqueda en search_logs con sus resultados para analitica y auditoria."""
+    """Guarda un registro de la busqueda en search_logs con sus resultados crudos en raw_products_json."""
     conn = _get_connection()
     if not conn:
         return
@@ -169,13 +169,13 @@ def log_search(
                 INSERT INTO search_logs (
                     session_id, ip_address, raw_query, is_cached, 
                     response_time_ms, status, cheapest_pharmacy, min_price, max_price,
-                    total_results, results_json, created_at
+                    total_results, raw_products_json, created_at
                 )
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW());
             """, (
                 session_id, ip, raw_query, is_cached,
                 response_time_ms, status, cheapest_pharmacy, min_price, max_price,
-                total_results, Json(results_json) if results_json is not None else None
+                total_results, Json(raw_products_json) if raw_products_json is not None else None
             ))
         conn.commit()
     except Exception as e:
@@ -184,68 +184,56 @@ def log_search(
         conn.close()
 
 
-def save_pharmacy_scrape(search_term: str, pharmacy: str, products: List[Dict[str, Any]], ttl_hours: int = 24):
+def get_cached_search(search_term: str) -> Optional[List[Dict[str, Any]]]:
     """
-    Guarda los resultados crudos de una farmacia en pharmacy_raw_scrapes.
-    Alimenta tanto el historico diario de precios como el cache caliente.
+    Recupera los productos crudos cacheados desde search_logs si la busqueda
+    fue exitosa y tiene menos de 24 horas de antiguedad.
     """
     conn = _get_connection()
     if not conn:
-        return
+        return None
         
-    now = datetime.now()
-    expires_at = now + timedelta(hours=ttl_hours)
-    
     try:
         with conn.cursor() as cur:
             cur.execute("""
-                INSERT INTO pharmacy_raw_scrapes (
-                    search_term, fecha_scrape, hora_inyeccion, pharmacy, 
-                    total_products, raw_products_json, scraper_status, expires_at
-                )
-                VALUES (%s, CURRENT_DATE, NOW(), %s, %s, %s, 'OK', %s)
-                ON CONFLICT (search_term, pharmacy, fecha_scrape) DO UPDATE SET
-                    hora_inyeccion = NOW(),
-                    total_products = EXCLUDED.total_products,
-                    raw_products_json = EXCLUDED.raw_products_json,
-                    expires_at = EXCLUDED.expires_at
-                WHERE EXCLUDED.total_products >= pharmacy_raw_scrapes.total_products OR pharmacy_raw_scrapes.total_products = 0;
-            """, (search_term.lower().strip(), pharmacy, len(products), Json(products), expires_at))
-        conn.commit()
+                SELECT raw_products_json
+                FROM search_logs
+                WHERE LOWER(raw_query) = LOWER(%s)
+                  AND status = 'SUCCESS'
+                  AND raw_products_json IS NOT NULL
+                  AND created_at > NOW() - INTERVAL '24 hours'
+                ORDER BY created_at DESC
+                LIMIT 1;
+            """, (search_term.strip(),))
+            
+            row = cur.fetchone()
+            if row and row[0]:
+                data = row[0]
+                if isinstance(data, list):
+                    if data and isinstance(data[0], dict) and "resultados" in data[0]:
+                        prods = []
+                        for item in data:
+                            prods.extend(item.get("resultados", []))
+                        return prods
+                    return data
+                elif isinstance(data, dict):
+                    return data.get("resultados", [])
     except Exception as e:
-        logger.error(f"[DB SAVE SCRAPE ERROR] {e}")
+        logger.error(f"[DB GET CACHED SEARCH ERROR] {e}")
     finally:
         conn.close()
+        
+    return None
 
 def get_pharmacy_cached_scrapes(search_term: str) -> List[Dict[str, Any]]:
-    """
-    Recupera los productos crudos cacheados de todas las farmacias para un termino,
-    siempre y cuando no hayan expirado.
-    """
-    conn = _get_connection()
-    if not conn:
-        return []
-        
-    all_products = []
-    try:
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT pharmacy, raw_products_json
-                FROM pharmacy_raw_scrapes
-                WHERE search_term = %s AND expires_at > NOW();
-            """, (search_term.lower().strip(),))
-            
-            rows = cur.fetchall()
-            for row in rows:
-                pharmacy, prods = row
-                if isinstance(prods, list):
-                    all_products.extend(prods)
-    except Exception as e:
-        logger.error(f"[DB GET CACHE ERROR] {e}")
-    finally:
-        conn.close()
-        
-    return all_products
+    """Compatibilidad: redirige la busqueda de cache a search_logs."""
+    res = get_cached_search(search_term)
+    return res if res else []
+
+def save_pharmacy_scrape(search_term: str, pharmacy: str, products: List[Dict[str, Any]], ttl_hours: int = 24):
+    """Obsoleto: todos los resultados se consolidan directamente en search_logs.raw_products_json."""
+    pass
+
 
 def record_click(
     medicine: str,
