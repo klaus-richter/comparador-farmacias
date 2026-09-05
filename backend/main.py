@@ -33,9 +33,9 @@ def _extract_analytics_summary(res_list):
 
 def _record_visit_and_check_block(ip: str, country: str, city: str, user_agent: str):
     try:
-        is_blocked = db.record_client_visit(ip, country, city, user_agent)
-        if is_blocked:
-            _BLOCKED_IPS_STORE[ip] = time.time() + 86400  # Bloquear por 24h
+        is_blocked, unblock_ts = db.record_client_visit(ip, country, city, user_agent)
+        if is_blocked and unblock_ts:
+            _BLOCKED_IPS_STORE[ip] = unblock_ts
     except Exception as e:
         pass
 
@@ -61,15 +61,38 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+import threading
+from zoneinfo import ZoneInfo
+from datetime import datetime
 from collections import defaultdict
 from fastapi import Request, HTTPException
 from fastapi.responses import JSONResponse
 
-# Rate Limiting estricto por IP en memoria (Ventana deslizante + Bloqueo de 1 hora)
+SANTIAGO_TZ = ZoneInfo("America/Santiago")
+
+# Rate Limiting estricto por IP en memoria + persistido en Supabase
 _RATE_LIMIT_STORE = defaultdict(list)
 _BLOCKED_IPS_STORE = {}
 _MAX_REQUESTS_PER_MINUTE = 10
 _MAX_REQUESTS_PER_HOUR = 20
+
+def _format_block_message(unblock_time: float, motivo: str = None) -> str:
+    dt = datetime.fromtimestamp(unblock_time, SANTIAGO_TZ)
+    hora_str = dt.strftime("%H:%M")
+    mins_left = max(1, int(round((unblock_time - time.time()) / 60)))
+    if motivo:
+        return f"Has superado el límite de {motivo}. Podrás volver a buscar a las {hora_str} hrs (hora de Santiago de Chile, en aprox. {mins_left} min)."
+    return f"Has superado el límite de consultas permitidas. Podrás volver a buscar a las {hora_str} hrs (hora de Santiago de Chile, en aprox. {mins_left} min)."
+
+@app.on_event("startup")
+def preload_blocked_ips():
+    """Carga bloqueos vigentes desde Supabase al arrancar el contenedor."""
+    try:
+        active = db.get_active_blocked_ips()
+        if active:
+            _BLOCKED_IPS_STORE.update(active)
+    except Exception:
+        pass
 
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
@@ -87,8 +110,8 @@ async def rate_limit_middleware(request: Request, call_next):
                     status_code=429,
                     content={
                         "status": "error",
-                        "code": "IP_BLOCKED_1H",
-                        "detail": "Has superado el límite de consultas permitidas. Espera 1 hora para volver a intentar."
+                        "code": "IP_BLOCKED",
+                        "detail": _format_block_message(unblock_time)
                     }
                 )
             else:
@@ -101,25 +124,29 @@ async def rate_limit_middleware(request: Request, call_next):
         # 1. Chequeo límite por minuto (máx 10)
         recent_1m = [t for t in timestamps if now - t < 60]
         if len(recent_1m) >= _MAX_REQUESTS_PER_MINUTE:
-            _BLOCKED_IPS_STORE[client_ip] = now + 3600  # Bloquear por 1 hora
+            unblock_time = now + 3600  # Bloquear por 1 hora
+            _BLOCKED_IPS_STORE[client_ip] = unblock_time
+            threading.Thread(target=db.block_ip, args=(client_ip, 1, "RATE_LIMIT_10_PER_MIN"), daemon=True).start()
             return JSONResponse(
                 status_code=429,
                 content={
                     "status": "error",
                     "code": "RATE_LIMIT_MINUTE",
-                    "detail": "Has superado el límite de 10 consultas por minuto. Espera 1 hora para volver a intentar."
+                    "detail": _format_block_message(unblock_time, "10 consultas por minuto")
                 }
             )
 
         # 2. Chequeo límite por hora (máx 20)
         if len(timestamps) >= _MAX_REQUESTS_PER_HOUR:
-            _BLOCKED_IPS_STORE[client_ip] = now + 3600  # Bloquear por 1 hora
+            unblock_time = now + 3600  # Bloquear por 1 hora
+            _BLOCKED_IPS_STORE[client_ip] = unblock_time
+            threading.Thread(target=db.block_ip, args=(client_ip, 1, "RATE_LIMIT_20_PER_HOUR"), daemon=True).start()
             return JSONResponse(
                 status_code=429,
                 content={
                     "status": "error",
                     "code": "RATE_LIMIT_HOUR",
-                    "detail": "Has superado el límite de 20 consultas por hora. Espera 1 hora para volver a intentar."
+                    "detail": _format_block_message(unblock_time, "20 consultas por hora")
                 }
             )
 
@@ -127,6 +154,7 @@ async def rate_limit_middleware(request: Request, call_next):
 
     response = await call_next(request)
     return response
+
 
 @app.get("/api/hello")
 def hello():
