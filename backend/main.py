@@ -79,10 +79,10 @@ _MAX_REQUESTS_PER_HOUR = 20
 def _format_block_message(unblock_time: float, motivo: str = None) -> str:
     dt = datetime.fromtimestamp(unblock_time, SANTIAGO_TZ)
     hora_str = dt.strftime("%H:%M")
-    mins_left = max(1, int(round((unblock_time - time.time()) / 60)))
     if motivo:
-        return f"Has superado el límite de {motivo}. Podrás volver a buscar a las {hora_str} hrs (hora de Santiago de Chile, en aprox. {mins_left} min)."
-    return f"Has superado el límite de consultas permitidas. Podrás volver a buscar a las {hora_str} hrs (hora de Santiago de Chile, en aprox. {mins_left} min)."
+        return f"Has superado el límite de {motivo}. Podrás volver a buscar a las {hora_str} hrs."
+    return f"Has superado el límite de consultas permitidas. Podrás volver a buscar a las {hora_str} hrs."
+
 
 @app.on_event("startup")
 def preload_blocked_ips():
