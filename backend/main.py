@@ -441,27 +441,10 @@ async def track_search_event(event: SearchEvent, request: Request):
     return {"status": "ok"}
 
 @app.post("/api/analytics/click")
-async def track_click_event(event: ClickEvent, request: Request, background_tasks: BackgroundTasks):
-    client_ip = request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for") or (request.client.host if request.client else "unknown")
-    client_ip = client_ip.split(",")[0].strip()
-
-    record_click(
-        medicine=event.medicine,
-        pharmacy=event.pharmacy,
-        price=event.price,
-        url=event.url,
-        is_cheapest=event.is_cheapest
-    )
-    background_tasks.add_task(
-        db.record_click,
-        medicine=event.medicine,
-        pharmacy=event.pharmacy,
-        price=event.price,
-        url=event.url,
-        is_cheapest=event.is_cheapest,
-        ip=client_ip
-    )
+async def track_click_event():
+    # Desactivado temporalmente para no consumir procesos en clicks
     return {"status": "ok"}
+
 
 
 @app.get("/api/admin/metrics")
