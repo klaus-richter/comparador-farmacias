@@ -94,6 +94,20 @@ def preload_blocked_ips():
     except Exception:
         pass
 
+def _cors_429(content: dict, request: Request) -> JSONResponse:
+    origin = request.headers.get("origin") or "*"
+    allowed_origins = [
+        "https://quefarmacia.cl", "https://www.quefarmacia.cl", "https://recetachile.cl",
+        "http://localhost:5500", "http://127.0.0.1:5500"
+    ]
+    headers = {
+        "Access-Control-Allow-Origin": origin if origin in allowed_origins else "*",
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "*"
+    }
+    return JSONResponse(status_code=429, content=content, headers=headers)
+
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
     # Proteger endpoints de búsqueda contra scrapers, bots y spam
@@ -106,14 +120,11 @@ async def rate_limit_middleware(request: Request, call_next):
         if client_ip in _BLOCKED_IPS_STORE:
             unblock_time = _BLOCKED_IPS_STORE[client_ip]
             if now < unblock_time:
-                return JSONResponse(
-                    status_code=429,
-                    content={
-                        "status": "error",
-                        "code": "IP_BLOCKED",
-                        "detail": _format_block_message(unblock_time)
-                    }
-                )
+                return _cors_429({
+                    "status": "error",
+                    "code": "IP_BLOCKED",
+                    "detail": _format_block_message(unblock_time)
+                }, request)
             else:
                 del _BLOCKED_IPS_STORE[client_ip]
 
@@ -127,33 +138,28 @@ async def rate_limit_middleware(request: Request, call_next):
             unblock_time = now + 3600  # Bloquear por 1 hora
             _BLOCKED_IPS_STORE[client_ip] = unblock_time
             threading.Thread(target=db.block_ip, args=(client_ip, 1, "RATE_LIMIT_10_PER_MIN"), daemon=True).start()
-            return JSONResponse(
-                status_code=429,
-                content={
-                    "status": "error",
-                    "code": "RATE_LIMIT_MINUTE",
-                    "detail": _format_block_message(unblock_time, "10 consultas por minuto")
-                }
-            )
+            return _cors_429({
+                "status": "error",
+                "code": "RATE_LIMIT_MINUTE",
+                "detail": _format_block_message(unblock_time, "10 consultas por minuto")
+            }, request)
 
         # 2. Chequeo límite por hora (máx 20)
         if len(timestamps) >= _MAX_REQUESTS_PER_HOUR:
             unblock_time = now + 3600  # Bloquear por 1 hora
             _BLOCKED_IPS_STORE[client_ip] = unblock_time
             threading.Thread(target=db.block_ip, args=(client_ip, 1, "RATE_LIMIT_20_PER_HOUR"), daemon=True).start()
-            return JSONResponse(
-                status_code=429,
-                content={
-                    "status": "error",
-                    "code": "RATE_LIMIT_HOUR",
-                    "detail": _format_block_message(unblock_time, "20 consultas por hora")
-                }
-            )
+            return _cors_429({
+                "status": "error",
+                "code": "RATE_LIMIT_HOUR",
+                "detail": _format_block_message(unblock_time, "20 consultas por hora")
+            }, request)
 
         _RATE_LIMIT_STORE[client_ip].append(now)
 
     response = await call_next(request)
     return response
+
 
 
 @app.get("/api/hello")
