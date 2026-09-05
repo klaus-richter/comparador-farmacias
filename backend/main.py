@@ -120,11 +120,25 @@ async def rate_limit_middleware(request: Request, call_next):
         if client_ip in _BLOCKED_IPS_STORE:
             unblock_time = _BLOCKED_IPS_STORE[client_ip]
             if now < unblock_time:
-                return _cors_429({
-                    "status": "error",
-                    "code": "IP_BLOCKED",
-                    "detail": _format_block_message(unblock_time)
-                }, request)
+                # Si en memoria figura bloqueada, verificar en Supabase si fue desbloqueada manualmente
+                try:
+                    active_db = db.get_active_blocked_ips()
+                    if client_ip not in active_db:
+                        del _BLOCKED_IPS_STORE[client_ip]
+                        if client_ip in _RATE_LIMIT_STORE:
+                            _RATE_LIMIT_STORE[client_ip].clear()
+                    else:
+                        return _cors_429({
+                            "status": "error",
+                            "code": "IP_BLOCKED",
+                            "detail": _format_block_message(unblock_time)
+                        }, request)
+                except Exception:
+                    return _cors_429({
+                        "status": "error",
+                        "code": "IP_BLOCKED",
+                        "detail": _format_block_message(unblock_time)
+                    }, request)
             else:
                 del _BLOCKED_IPS_STORE[client_ip]
 
@@ -179,13 +193,46 @@ async def security_status(request: Request):
     if client_ip in _BLOCKED_IPS_STORE:
         unblock_time = _BLOCKED_IPS_STORE[client_ip]
         if now < unblock_time:
-            return _cors_429({
-                "blocked": True,
-                "detail": _format_block_message(unblock_time)
-            }, request)
+            # Si en memoria figura bloqueada, verificar en Supabase si fue desbloqueada manualmente
+            try:
+                active_db = db.get_active_blocked_ips()
+                if client_ip not in active_db:
+                    del _BLOCKED_IPS_STORE[client_ip]
+                    if client_ip in _RATE_LIMIT_STORE:
+                        _RATE_LIMIT_STORE[client_ip].clear()
+                else:
+                    return _cors_429({
+                        "blocked": True,
+                        "detail": _format_block_message(unblock_time)
+                    }, request)
+            except Exception:
+                return _cors_429({
+                    "blocked": True,
+                    "detail": _format_block_message(unblock_time)
+                }, request)
         else:
             del _BLOCKED_IPS_STORE[client_ip]
     return JSONResponse(status_code=200, content={"blocked": False, "status": "ok"}, headers=no_cache_headers)
+
+@app.get("/api/security/unblock")
+@app.post("/api/security/unblock")
+def unblock_client_ip(request: Request, ip: str = None):
+    """Desbloquea una IP inmediatamente en memoria y en Supabase."""
+    target_ip = (ip or request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for") or (request.client.host if request.client else "unknown")).split(",")[0].strip()
+    if target_ip in _BLOCKED_IPS_STORE:
+        del _BLOCKED_IPS_STORE[target_ip]
+    if target_ip in _RATE_LIMIT_STORE:
+        _RATE_LIMIT_STORE[target_ip].clear()
+    _BLOCKED_IPS_STORE.clear()
+    _RATE_LIMIT_STORE.clear()
+    db.unblock_ip(target_ip)
+    origin = request.headers.get("origin") or "*"
+    headers = {
+        "Access-Control-Allow-Origin": origin,
+        "Access-Control-Allow-Credentials": "true",
+        "Cache-Control": "no-store, no-cache, must-revalidate"
+    }
+    return JSONResponse(status_code=200, content={"status": "ok", "unblocked": target_ip}, headers=headers)
 
 
 
