@@ -2,6 +2,7 @@ import os
 import re
 import json
 import logging
+import unicodedata
 from typing import Optional, Dict, Any, List, Tuple
 from datetime import datetime, timedelta
 
@@ -165,6 +166,94 @@ def unblock_ip(ip: str) -> bool:
         conn.close()
 
 
+def normalize_medicine_term(term: str) -> str:
+    """Normaliza el termino del medicamento: minusculas, sin espacios multiples, sin tildes ni puntuacion extra."""
+    if not term:
+        return ""
+    s = term.strip().lower()
+    s = re.sub(r'\s+', ' ', s)
+    s = unicodedata.normalize('NFKD', s)
+    s = ''.join(c for c in s if not unicodedata.combining(c))
+    return s.strip(" .,;:-")
+
+def upsert_canasta_medicamento(
+    term: str,
+    results_list: List[Dict[str, Any]],
+    display_name: Optional[str] = None
+) -> bool:
+    """
+    Inserta o actualiza un medicamento en canasta_medicamentos.
+    Guarda el ultimo JSON de resultados, recalcula precios y suma al contador de busquedas.
+    """
+    conn = _get_connection()
+    if not conn:
+        return False
+
+    norm = normalize_medicine_term(term)
+    if not norm:
+        conn.close()
+        return False
+
+    disp = (display_name or term).strip()
+
+    valid_prices = []
+    cheapest_pharm = None
+    min_p = None
+    max_p = None
+
+    for item in results_list:
+        p_str = item.get("precio", "")
+        p_digits = "".join(c for c in str(p_str) if c.isdigit())
+        if p_digits:
+            val = int(p_digits)
+            if val > 0:
+                valid_prices.append((val, item.get("fuente")))
+
+    if valid_prices:
+        min_p = min(p[0] for p in valid_prices)
+        max_p = max(p[0] for p in valid_prices)
+        cheapest_pharm = next((p[1] for p in valid_prices if p[0] == min_p), None)
+
+    total = len(results_list)
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO canasta_medicamentos (
+                    normalized_name, display_name, results_json, total_results,
+                    min_price, max_price, cheapest_pharmacy, search_count, first_searched_at, updated_at
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 1, NOW(), NOW())
+                ON CONFLICT (normalized_name) DO UPDATE SET
+                    display_name = EXCLUDED.display_name,
+                    results_json = CASE WHEN EXCLUDED.total_results > 0 THEN EXCLUDED.results_json ELSE canasta_medicamentos.results_json END,
+                    total_results = CASE WHEN EXCLUDED.total_results > 0 THEN EXCLUDED.total_results ELSE canasta_medicamentos.total_results END,
+                    min_price = CASE WHEN EXCLUDED.total_results > 0 THEN EXCLUDED.min_price ELSE canasta_medicamentos.min_price END,
+                    max_price = CASE WHEN EXCLUDED.total_results > 0 THEN EXCLUDED.max_price ELSE canasta_medicamentos.max_price END,
+                    cheapest_pharmacy = CASE WHEN EXCLUDED.total_results > 0 THEN EXCLUDED.cheapest_pharmacy ELSE canasta_medicamentos.cheapest_pharmacy END,
+                    search_count = canasta_medicamentos.search_count + 1,
+                    updated_at = NOW();
+            """, (
+                norm, disp, Json(results_list), total, min_p, max_p, cheapest_pharm
+            ))
+        conn.commit()
+        return True
+    except Exception as e:
+        logger.error(f"[DB CANASTA UPSERT ERROR] {e}")
+        return False
+    finally:
+        conn.close()
+
+def save_recipe_to_canasta(receta_results: List[Dict[str, Any]]):
+    """Procesa cada medicamento de la receta y lo guarda/actualiza individualmente en canasta_medicamentos."""
+    for item in receta_results:
+        if isinstance(item, dict):
+            term = item.get("producto")
+            results = item.get("resultados", [])
+            if term:
+                upsert_canasta_medicamento(term, results)
+
+
 def log_search(
     ip: str,
     raw_query: str,
@@ -176,9 +265,10 @@ def log_search(
     max_price: Optional[int] = None,
     session_id: Optional[str] = None,
     total_results: int = 0,
-    raw_products_json: Optional[Any] = None
+    raw_products_json: Optional[Any] = None,
+    output_json: Optional[Any] = None
 ):
-    """Guarda un registro de la busqueda en search_logs con sus resultados crudos en raw_products_json."""
+    """Guarda un registro de la busqueda en search_logs con sus resultados crudos y el output limpio entregado al cliente."""
     conn = _get_connection()
     if not conn:
         return
@@ -189,13 +279,15 @@ def log_search(
                 INSERT INTO search_logs (
                     session_id, ip_address, raw_query, is_cached, 
                     response_time_ms, status, cheapest_pharmacy, min_price, max_price,
-                    total_results, raw_products_json, created_at
+                    total_results, raw_products_json, output_json, created_at
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW());
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW());
             """, (
                 session_id, ip, raw_query, is_cached,
                 response_time_ms, status, cheapest_pharmacy, min_price, max_price,
-                total_results, Json(raw_products_json) if raw_products_json is not None else None
+                total_results,
+                Json(raw_products_json) if raw_products_json is not None else None,
+                Json(output_json) if output_json is not None else None
             ))
         conn.commit()
     except Exception as e:
