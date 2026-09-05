@@ -155,9 +155,43 @@ def get_cached_results(query: str) -> Optional[Dict[str, Any]]:
                     "created_at": row["created_at"],
                     "expires_at": row["expires_at"]
                 }
+
+            # L2 Cache: Si no está en SQLite local, intentar recuperar de Supabase
+            try:
+                from backend import database as db
+                sb_prods = db.get_pharmacy_cached_scrapes(norm_query)
+                if sb_prods and len(sb_prods) > 0:
+                    detalle = {}
+                    for p in sb_prods:
+                        f = p.get("fuente")
+                        if f:
+                            if f not in detalle:
+                                detalle[f] = {"status": "OK", "total": 0}
+                            detalle[f]["total"] += 1
+                    cobertura = {
+                        "detalle": detalle,
+                        "con_stock": len(detalle),
+                        "sin_stock": 0,
+                        "con_error": 0
+                    }
+                    now_ts = time.time()
+                    cached_data = {
+                        "producto": query,
+                        "total": len(sb_prods),
+                        "resultados": sb_prods,
+                        "cobertura": cobertura,
+                        "cached": True,
+                        "fecha_ingesta": datetime.now().isoformat(),
+                        "created_at": now_ts,
+                        "expires_at": now_ts + 86400
+                    }
+                    return cached_data
+            except Exception as e:
+                print(f"[L2 SUPABASE CACHE LOOKUP ERROR] {e}")
     except Exception as e:
         print(f"Error leyendo cache para '{query}': {e}")
     return None
+
 
 
 
@@ -224,8 +258,27 @@ def save_cached_results(query: str, data: Dict[str, Any], custom_expires_at: Opt
                     pass
             except ImportError:
                 pass
+
+            # Sincronizar resultados crudos a Supabase en background (historico diario y cache L2)
+            def _sync_supabase():
+                try:
+                    from backend import database as db
+                    from collections import defaultdict
+                    by_pharmacy = defaultdict(list)
+                    for item in clean_results:
+                        f = item.get("fuente")
+                        if f:
+                            by_pharmacy[f].append(item)
+                    for pharmacy, prods in by_pharmacy.items():
+                        db.save_pharmacy_scrape(norm_query, pharmacy, prods)
+                except Exception as e:
+                    print(f"[SUPABASE SCRAPE SYNC ERROR] {e}")
+
+            import threading
+            threading.Thread(target=_sync_supabase, daemon=True).start()
     except Exception as e:
         print(f"Error guardando cache para '{query}': {e}")
+
 
 def get_all_known_queries() -> List[str]:
     """Retorna la lista de todos los medicamentos alguna vez buscados o registrados."""
