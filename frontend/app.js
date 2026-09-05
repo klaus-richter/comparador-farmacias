@@ -586,18 +586,21 @@ function escapeHtml(str) {
     .replace(/'/g, "&#039;");
 }
 
-function showSearchBannerAlert(msg, isCooldown = false, seconds = 15) {
+function showSearchBannerAlert(msg, isCooldown = false, seconds = 15, isPermanent = false) {
   const existing = document.getElementById("search-validation-banner");
   if (existing) existing.remove();
 
   const banner = document.createElement("div");
   banner.id = "search-validation-banner";
   
+  const isBlock = isPermanent || (msg && (msg.includes("superado") || msg.includes("volver a buscar") || msg.includes("bloque") || msg.includes("429")));
+
   if (isCooldown) {
-    banner.style.cssText = "background: #eff6ff; border: 1.5px solid #bfdbfe; color: #1d4ed8; padding: 10px 16px; border-radius: 10px; font-weight: 700; font-size: 0.92rem; margin: 14px auto; max-width: 600px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 3px 10px rgba(29, 78, 216, 0.06);";
+    banner.style.cssText = "background: #eff6ff; border: 1.5px solid #bfdbfe; color: #1d4ed8; padding: 12px 18px; border-radius: 10px; font-weight: 700; font-size: 0.95rem; margin: 14px auto; max-width: 600px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 3px 10px rgba(29, 78, 216, 0.06);";
     let rem = seconds;
     banner.innerHTML = `<span>⏳</span> <span>Espera <b>${rem}s</b> antes de volver a buscar.</span>`;
     searchBtn.disabled = true;
+    searchBtn.querySelector(".btn-text").textContent = `Espera ${rem}s`;
     
     const interval = setInterval(() => {
       rem--;
@@ -605,10 +608,20 @@ function showSearchBannerAlert(msg, isCooldown = false, seconds = 15) {
         clearInterval(interval);
         banner.remove();
         searchBtn.disabled = false;
+        searchBtn.querySelector(".btn-text").textContent = "Comparar Farmacias";
       } else {
         banner.innerHTML = `<span>⏳</span> <span>Espera <b>${rem}s</b> antes de volver a buscar.</span>`;
+        searchBtn.querySelector(".btn-text").textContent = `Espera ${rem}s`;
       }
     }, 1000);
+  } else if (isBlock) {
+    // BLOQUEO PERMANENTE: Fondo rojo, fijo en pantalla, botón bloqueado
+    banner.style.cssText = "background: #fef2f2; border: 2px solid #ef4444; color: #991b1b; padding: 14px 20px; border-radius: 12px; font-weight: 700; font-size: 0.95rem; margin: 16px auto; max-width: 640px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 4px 14px rgba(239, 68, 68, 0.12);";
+    banner.innerHTML = `<span>🛑</span> <span>${msg}</span>`;
+    searchBtn.disabled = true;
+    searchBtn.querySelector(".btn-text").textContent = "Búsqueda Bloqueada";
+    sessionStorage.setItem("quefarmacia_blocked_msg", msg);
+    // NO se quita con timer, permanece visible
   } else {
     banner.style.cssText = "background: #fef2f2; border: 1.5px solid #fecaca; color: #b91c1c; padding: 10px 16px; border-radius: 10px; font-weight: 700; font-size: 0.92rem; margin: 14px auto; max-width: 600px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 3px 10px rgba(239, 68, 68, 0.06);";
     banner.innerHTML = `<span>⚠️</span> <span>${msg}</span>`;
@@ -621,6 +634,7 @@ function showSearchBannerAlert(msg, isCooldown = false, seconds = 15) {
     searchForm.insertAdjacentElement("afterend", banner);
   }
 }
+
 
 searchForm.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -699,24 +713,52 @@ searchForm.addEventListener("submit", async (e) => {
     }
   } catch (err) {
     stopWaitingAnimation();
-    showSearchBannerAlert(err.message.replace(/^Error:\s*/i, ""));
+    const msg = err.message.replace(/^Error:\s*/i, "");
+    const isBlock = msg.includes("superado") || msg.includes("volver a buscar") || msg.includes("bloque") || msg.includes("429");
+    showSearchBannerAlert(msg, false, 0, isBlock);
   } finally {
-    searchBtn.disabled = false;
-    searchBtn.querySelector(".btn-text").textContent = "Comparar Farmacias";
+    const isBlocked = !!sessionStorage.getItem("quefarmacia_blocked_msg");
+    if (!isBlocked && !searchBtn.disabled) {
+      searchBtn.disabled = false;
+      searchBtn.querySelector(".btn-text").textContent = "Comparar Farmacias";
+    }
   }
 });
 
-
-
-
-
-// Contador discreto de visitas
+// Verificación proactiva al entrar a la página: si la IP está bloqueada, mostrar banner permanente de inmediato
+async function checkIpBlockOnLoad() {
+  try {
+    const saved = sessionStorage.getItem("quefarmacia_blocked_msg");
+    if (saved) {
+      showSearchBannerAlert(saved, false, 0, true);
+    }
+    const res = await fetch(`${API}/api/security/status`);
+    if (res.status === 429) {
+      const data = await res.json().catch(() => ({}));
+      const msg = data.detail || "Has superado el límite de consultas permitidas.";
+      showSearchBannerAlert(msg, false, 0, true);
+    } else if (res.ok) {
+      sessionStorage.removeItem("quefarmacia_blocked_msg");
+      const existing = document.getElementById("search-validation-banner");
+      if (existing && existing.innerText.includes("superado")) {
+        existing.remove();
+        searchBtn.disabled = false;
+        searchBtn.querySelector(".btn-text").textContent = "Comparar Farmacias";
+      }
+    }
+  } catch (e) {}
+}
 
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initVisitorCounter);
+  document.addEventListener("DOMContentLoaded", () => {
+    initVisitorCounter();
+    checkIpBlockOnLoad();
+  });
 } else {
-  
+  initVisitorCounter();
+  checkIpBlockOnLoad();
 }
+
 
 // Telemetría Silenciosa (Búsquedas y Clics)
 function trackSearchEvent(receta, queryList, elapsedSecs) {
