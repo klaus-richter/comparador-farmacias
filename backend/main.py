@@ -31,6 +31,57 @@ def _extract_analytics_summary(res_list):
     winner = next((p[1] for p in all_prices if p[0] == min_val), None)
     return min_val, max_val, winner
 
+def _build_client_output(res_list):
+    """
+    Construye el resumen auditado de lo que se le muestra al cliente:
+    Por cada medicamento: ganador con estrella, precio, link, farmacia y comparativa por cadena.
+    """
+    output = []
+    for r in res_list:
+        if not isinstance(r, dict):
+            continue
+        prod_name = r.get("producto", "")
+        results = r.get("resultados", [])
+        
+        by_pharmacy = {}
+        winner = None
+        min_price = float("inf")
+
+        for item in results:
+            fuente = item.get("fuente", "")
+            p_str = item.get("precio", "")
+            digits = "".join([c for c in str(p_str) if c.isdigit()])
+            p_num = int(digits) if digits else float("inf")
+
+            if fuente not in by_pharmacy or p_num < by_pharmacy[fuente].get("precio_num", float("inf")):
+                by_pharmacy[fuente] = {
+                    "precio_num": p_num,
+                    "precio": p_str,
+                    "titulo": item.get("titulo", ""),
+                    "url": item.get("url", "")
+                }
+
+            if 0 < p_num < min_price:
+                min_price = p_num
+                winner = {
+                    "farmacia": fuente,
+                    "titulo": item.get("titulo", ""),
+                    "precio": p_num,
+                    "precio_formato": p_str,
+                    "url": item.get("url", ""),
+                    "tiene_estrella": True
+                }
+
+        for f in by_pharmacy:
+            by_pharmacy[f].pop("precio_num", None)
+
+        output.append({
+            "medicamento": prod_name,
+            "ganador_estrella": winner,
+            "opciones_farmacias": by_pharmacy
+        })
+    return output
+
 def _record_visit_and_check_block(ip: str, country: str, city: str, user_agent: str):
     try:
         is_blocked, unblock_ts = db.record_client_visit(ip, country, city, user_agent)
@@ -315,6 +366,8 @@ async def buscar(
     background_tasks.add_task(_record_visit_and_check_block, client_ip, country, city, ua)
     min_p, max_p, winner = _extract_analytics_summary([data])
     results_list = data.get("resultados", [])
+    output_res = _build_client_output([data])
+    background_tasks.add_task(db.upsert_canasta_medicamento, q, results_list)
     background_tasks.add_task(
         db.log_search,
         ip=client_ip,
@@ -327,7 +380,8 @@ async def buscar(
         max_price=max_p,
         session_id=request.headers.get("x-session-id"),
         total_results=len(results_list),
-        raw_products_json=results_list
+        raw_products_json=results_list,
+        output_json=output_res
     )
 
     return {
@@ -375,6 +429,8 @@ async def buscar_receta(
     background_tasks.add_task(_record_visit_and_check_block, client_ip, country, city, ua)
     min_p, max_p, winner = _extract_analytics_summary(res_final)
     total_found = sum(len(r.get("resultados", [])) for r in res_final if isinstance(r, dict))
+    output_res = _build_client_output(res_final)
+    background_tasks.add_task(db.save_recipe_to_canasta, res_final)
     background_tasks.add_task(
         db.log_search,
         ip=client_ip,
@@ -387,7 +443,8 @@ async def buscar_receta(
         max_price=max_p,
         session_id=request.headers.get("x-session-id"),
         total_results=total_found,
-        raw_products_json=res_final
+        raw_products_json=res_final,
+        output_json=output_res
     )
 
 
