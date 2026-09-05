@@ -166,6 +166,31 @@ async def rate_limit_middleware(request: Request, call_next):
 def hello():
     return {"status": "ok", "message": "Backend activo con 5 farmacias, rate limiting y caché"}
 
+@app.get("/api/security/status")
+async def security_status(request: Request):
+    """Consulta rápida en memoria si la IP actual está bloqueada."""
+    client_ip = request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for") or (request.client.host if request.client else "unknown")
+    client_ip = client_ip.split(",")[0].strip()
+    now = time.time()
+    if client_ip in _BLOCKED_IPS_STORE:
+        unblock_time = _BLOCKED_IPS_STORE[client_ip]
+        if now < unblock_time:
+            return _cors_429({
+                "blocked": True,
+                "detail": _format_block_message(unblock_time)
+            }, request)
+        else:
+            del _BLOCKED_IPS_STORE[client_ip]
+    return JSONResponse(
+        status_code=200,
+        content={"blocked": False},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS"
+        }
+    )
+
+
 
 
 ALL_TARGET_PHARMACIES = ["Cruz Verde", "Salcobrand", "Farmacias Ahumada", "Dr. Simi", "Ecofarmacias"]
