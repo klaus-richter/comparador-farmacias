@@ -235,27 +235,8 @@ def save_pharmacy_scrape(search_term: str, pharmacy: str, products: List[Dict[st
     pass
 
 
-def record_click(
-    medicine: str,
-    pharmacy: str,
-    price: Optional[str] = None,
-    url: Optional[str] = None,
-    is_cheapest: bool = False,
-    ip: Optional[str] = None
-):
-    """Registra el clic de compra del usuario hacia una farmacia en user_clicks."""
-    conn = _get_connection()
-    if not conn:
-        return
-    try:
-        with conn.cursor() as cur:
-            cur.execute("""
-                INSERT INTO user_clicks (medicine, pharmacy, price, url, is_cheapest, ip_address, created_at)
-                VALUES (%s, %s, %s, %s, %s, %s, NOW());
-            """, (medicine, pharmacy, price, url, is_cheapest, ip))
-        conn.commit()
-    except Exception as e:
-        logger.error(f"[DB RECORD CLICK ERROR] {e}")
-    finally:
-        conn.close()
+def record_click(*args, **kwargs):
+    """Desactivado temporalmente para no consumir procesos."""
+    pass
+
 
