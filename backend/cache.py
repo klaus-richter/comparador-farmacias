@@ -265,25 +265,9 @@ def save_cached_results(query: str, data: Dict[str, Any], custom_expires_at: Opt
             except ImportError:
                 pass
 
-            # Sincronizar resultados crudos a Supabase en background (historico diario y cache L2)
-            def _sync_supabase():
-                try:
-                    from backend import database as db
-                    from collections import defaultdict
-                    by_pharmacy = defaultdict(list)
-                    for item in clean_results:
-                        f = item.get("fuente")
-                        if f:
-                            by_pharmacy[f].append(item)
-                    for pharmacy, prods in by_pharmacy.items():
-                        db.save_pharmacy_scrape(norm_query, pharmacy, prods)
-                except Exception as e:
-                    print(f"[SUPABASE SCRAPE SYNC ERROR] {e}")
-
-            import threading
-            threading.Thread(target=_sync_supabase, daemon=True).start()
     except Exception as e:
         print(f"Error guardando cache para '{query}': {e}")
+
 
 
 def get_all_known_queries() -> List[str]:
