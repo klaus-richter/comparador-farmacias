@@ -3,8 +3,11 @@ import re
 import json
 import logging
 import unicodedata
+from zoneinfo import ZoneInfo
 from typing import Optional, Dict, Any, List, Tuple
 from datetime import datetime, timedelta
+
+SANTIAGO_TZ = ZoneInfo("America/Santiago")
 
 logger = logging.getLogger("backend.database")
 
@@ -67,9 +70,9 @@ def record_client_visit(ip: str, country: str = "CL", city: str = "Unknown", use
         with conn.cursor() as cur:
             cur.execute("""
                 INSERT INTO security_ips (ip_address, country, city, user_agent, is_mobile, os, first_seen_at, last_seen_at, request_count)
-                VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW(), 1)
+                VALUES (%s, %s, %s, %s, %s, %s, (NOW() AT TIME ZONE 'America/Santiago'), (NOW() AT TIME ZONE 'America/Santiago'), 1)
                 ON CONFLICT (ip_address) DO UPDATE SET
-                    last_seen_at = NOW(),
+                    last_seen_at = (NOW() AT TIME ZONE 'America/Santiago'),
                     request_count = security_ips.request_count + 1,
                     user_agent = COALESCE(NULLIF(EXCLUDED.user_agent, ''), security_ips.user_agent),
                     country = COALESCE(NULLIF(EXCLUDED.country, 'Unknown'), security_ips.country),
@@ -81,10 +84,10 @@ def record_client_visit(ip: str, country: str = "CL", city: str = "Unknown", use
             if row:
                 blocked_flag, blocked_until = row
                 if blocked_flag and blocked_until:
-                    now_tz = datetime.now(blocked_until.tzinfo)
-                    if blocked_until > now_tz:
+                    now_santiago = datetime.now(SANTIAGO_TZ).replace(tzinfo=None)
+                    if blocked_until > now_santiago:
                         is_blocked = True
-                        unblock_ts = blocked_until.timestamp()
+                        unblock_ts = blocked_until.replace(tzinfo=SANTIAGO_TZ).timestamp()
                     else:
                         is_blocked = False
         conn.commit()
@@ -96,7 +99,7 @@ def record_client_visit(ip: str, country: str = "CL", city: str = "Unknown", use
     return is_blocked, unblock_ts
 
 def block_ip(ip: str, hours: int = 1, reason: str = "RATE_LIMIT_EXCEEDED") -> Optional[float]:
-    """Registra y persiste el bloqueo de una IP en Supabase con fecha de expiracion."""
+    """Registra y persiste el bloqueo de una IP en Supabase con fecha de expiracion en horario Santiago."""
     conn = _get_connection()
     if not conn:
         return None
@@ -105,17 +108,17 @@ def block_ip(ip: str, hours: int = 1, reason: str = "RATE_LIMIT_EXCEEDED") -> Op
         with conn.cursor() as cur:
             cur.execute("""
                 INSERT INTO security_ips (ip_address, is_blocked, blocked_until, block_reason, first_seen_at, last_seen_at, request_count)
-                VALUES (%s, TRUE, NOW() + (%s * INTERVAL '1 hour'), %s, NOW(), NOW(), 1)
+                VALUES (%s, TRUE, (NOW() AT TIME ZONE 'America/Santiago') + (%s * INTERVAL '1 hour'), %s, (NOW() AT TIME ZONE 'America/Santiago'), (NOW() AT TIME ZONE 'America/Santiago'), 1)
                 ON CONFLICT (ip_address) DO UPDATE SET
                     is_blocked = TRUE,
-                    blocked_until = NOW() + (%s * INTERVAL '1 hour'),
+                    blocked_until = (NOW() AT TIME ZONE 'America/Santiago') + (%s * INTERVAL '1 hour'),
                     block_reason = EXCLUDED.block_reason,
-                    last_seen_at = NOW()
+                    last_seen_at = (NOW() AT TIME ZONE 'America/Santiago')
                 RETURNING blocked_until;
             """, (ip, hours, reason, hours))
             row = cur.fetchone()
             if row and row[0]:
-                unblock_ts = row[0].timestamp()
+                unblock_ts = row[0].replace(tzinfo=SANTIAGO_TZ).timestamp()
         conn.commit()
     except Exception as e:
         logger.error(f"[DB BLOCK IP ERROR] {e}")
@@ -124,7 +127,7 @@ def block_ip(ip: str, hours: int = 1, reason: str = "RATE_LIMIT_EXCEEDED") -> Op
     return unblock_ts
 
 def get_active_blocked_ips() -> Dict[str, float]:
-    """Recupera todas las IPs actualmente bloqueadas y sus timestamps de desbloqueo desde Supabase."""
+    """Recupera todas las IPs actualmente bloqueadas y sus timestamps de desbloqueo desde Supabase en horario Santiago."""
     conn = _get_connection()
     if not conn:
         return {}
@@ -134,11 +137,11 @@ def get_active_blocked_ips() -> Dict[str, float]:
             cur.execute("""
                 SELECT ip_address, blocked_until
                 FROM security_ips
-                WHERE is_blocked = TRUE AND blocked_until > NOW();
+                WHERE is_blocked = TRUE AND blocked_until > (NOW() AT TIME ZONE 'America/Santiago');
             """)
             for ip, until in cur.fetchall():
                 if until:
-                    blocked_dict[ip] = until.timestamp()
+                    blocked_dict[ip] = until.replace(tzinfo=SANTIAGO_TZ).timestamp()
     except Exception as e:
         logger.error(f"[DB GET BLOCKED IPS ERROR] {e}")
     finally:
@@ -223,7 +226,7 @@ def upsert_canasta_medicamento(
                     normalized_name, display_name, results_json, total_results,
                     min_price, max_price, cheapest_pharmacy, search_count, first_searched_at, updated_at
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, 1, NOW(), NOW())
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 1, (NOW() AT TIME ZONE 'America/Santiago'), (NOW() AT TIME ZONE 'America/Santiago'))
                 ON CONFLICT (normalized_name) DO UPDATE SET
                     display_name = EXCLUDED.display_name,
                     results_json = CASE WHEN EXCLUDED.total_results > 0 THEN EXCLUDED.results_json ELSE canasta_medicamentos.results_json END,
@@ -232,7 +235,7 @@ def upsert_canasta_medicamento(
                     max_price = CASE WHEN EXCLUDED.total_results > 0 THEN EXCLUDED.max_price ELSE canasta_medicamentos.max_price END,
                     cheapest_pharmacy = CASE WHEN EXCLUDED.total_results > 0 THEN EXCLUDED.cheapest_pharmacy ELSE canasta_medicamentos.cheapest_pharmacy END,
                     search_count = canasta_medicamentos.search_count + 1,
-                    updated_at = NOW();
+                    updated_at = (NOW() AT TIME ZONE 'America/Santiago');
             """, (
                 norm, disp, Json(results_list), total, min_p, max_p, cheapest_pharm
             ))
@@ -281,7 +284,7 @@ def log_search(
                     response_time_ms, status, cheapest_pharmacy, min_price, max_price,
                     total_results, raw_products_json, output_json, created_at
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW());
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, (NOW() AT TIME ZONE 'America/Santiago'));
             """, (
                 session_id, ip, raw_query, is_cached,
                 response_time_ms, status, cheapest_pharmacy, min_price, max_price,
@@ -313,7 +316,7 @@ def get_cached_search(search_term: str) -> Optional[List[Dict[str, Any]]]:
                 WHERE LOWER(raw_query) = LOWER(%s)
                   AND status = 'SUCCESS'
                   AND raw_products_json IS NOT NULL
-                  AND created_at > NOW() - INTERVAL '24 hours'
+                  AND created_at > (NOW() AT TIME ZONE 'America/Santiago') - INTERVAL '24 hours'
                 ORDER BY created_at DESC
                 LIMIT 1;
             """, (search_term.strip(),))
