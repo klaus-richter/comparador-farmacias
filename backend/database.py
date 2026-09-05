@@ -154,9 +154,11 @@ def log_search(
     cheapest_pharmacy: Optional[str] = None,
     min_price: Optional[int] = None,
     max_price: Optional[int] = None,
-    session_id: Optional[str] = None
+    session_id: Optional[str] = None,
+    total_results: int = 0,
+    results_json: Optional[Any] = None
 ):
-    """Guarda un registro de la busqueda en search_logs para analitica de mercado."""
+    """Guarda un registro de la busqueda en search_logs con sus resultados para analitica y auditoria."""
     conn = _get_connection()
     if not conn:
         return
@@ -166,18 +168,21 @@ def log_search(
             cur.execute("""
                 INSERT INTO search_logs (
                     session_id, ip_address, raw_query, is_cached, 
-                    response_time_ms, status, cheapest_pharmacy, min_price, max_price, created_at
+                    response_time_ms, status, cheapest_pharmacy, min_price, max_price,
+                    total_results, results_json, created_at
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW());
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW());
             """, (
                 session_id, ip, raw_query, is_cached,
-                response_time_ms, status, cheapest_pharmacy, min_price, max_price
+                response_time_ms, status, cheapest_pharmacy, min_price, max_price,
+                total_results, Json(results_json) if results_json is not None else None
             ))
         conn.commit()
     except Exception as e:
         logger.error(f"[DB LOG SEARCH ERROR] {e}")
     finally:
         conn.close()
+
 
 def save_pharmacy_scrape(search_term: str, pharmacy: str, products: List[Dict[str, Any]], ttl_hours: int = 24):
     """
