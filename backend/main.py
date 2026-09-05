@@ -11,6 +11,34 @@ from backend.cache import (
     clear_expired,
 )
 from backend.worker import precargar_medicamentos
+import backend.database as db
+
+def _extract_analytics_summary(res_list):
+    """Calcula precios minimos, maximos y farmacia ganadora para auditoria."""
+    all_prices = []
+    for r in res_list:
+        if isinstance(r, dict):
+            for item in r.get("resultados", []):
+                p_str = item.get("precio", "")
+                digits = "".join([c for c in p_str if c.isdigit()])
+                if digits:
+                    val = int(digits)
+                    all_prices.append((val, item.get("fuente")))
+    if not all_prices:
+        return None, None, None
+    min_val = min(p[0] for p in all_prices)
+    max_val = max(p[0] for p in all_prices)
+    winner = next((p[1] for p in all_prices if p[0] == min_val), None)
+    return min_val, max_val, winner
+
+def _record_visit_and_check_block(ip: str, country: str, city: str, user_agent: str):
+    try:
+        is_blocked = db.record_client_visit(ip, country, city, user_agent)
+        if is_blocked:
+            _BLOCKED_IPS_STORE[ip] = time.time() + 86400  # Bloquear por 24h
+    except Exception as e:
+        pass
+
 
 from fastapi.staticfiles import StaticFiles
 import os
@@ -47,7 +75,7 @@ _MAX_REQUESTS_PER_HOUR = 20
 async def rate_limit_middleware(request: Request, call_next):
     # Proteger endpoints de búsqueda contra scrapers, bots y spam
     if request.url.path.startswith("/api/buscar"):
-        client_ip = request.headers.get("x-forwarded-for") or (request.client.host if request.client else "unknown")
+        client_ip = request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for") or (request.client.host if request.client else "unknown")
         client_ip = client_ip.split(",")[0].strip()
         now = time.time()
 
@@ -165,12 +193,37 @@ async def buscar_un_producto(prod: str, force_refresh: bool = False):
 
 @app.get("/api/buscar")
 async def buscar(
+    request: Request,
+    background_tasks: BackgroundTasks,
     q: str = Query(..., description="Nombre del producto"),
     refresh: bool = False
 ):
     start = time.time()
     data = await buscar_un_producto(q, force_refresh=bool(refresh))
     elapsed = round(time.time() - start, 2)
+
+    # Telemetria & Seguridad en Background (Supabase + Memory)
+    client_ip = request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for") or (request.client.host if request.client else "unknown")
+    client_ip = client_ip.split(",")[0].strip()
+    country = request.headers.get("cf-ipcountry", "CL")
+    city = request.headers.get("cf-ipcity", "Unknown")
+    ua = request.headers.get("user-agent", "")
+
+    background_tasks.add_task(_record_visit_and_check_block, client_ip, country, city, ua)
+    min_p, max_p, winner = _extract_analytics_summary([data])
+    background_tasks.add_task(
+        db.log_search,
+        ip=client_ip,
+        raw_query=q,
+        is_cached=data.get("cached", False),
+        response_time_ms=int(elapsed * 1000),
+        status="SUCCESS" if data.get("resultados") else "NO_RESULTS",
+        cheapest_pharmacy=winner,
+        min_price=min_p,
+        max_price=max_p,
+        session_id=request.headers.get("x-session-id")
+    )
+
     return {
         "status": "ok",
         "producto": q,
@@ -184,12 +237,13 @@ async def buscar(
 
 @app.get("/api/buscar-receta")
 async def buscar_receta(
+    request: Request,
+    background_tasks: BackgroundTasks,
     q: str = Query(..., description="Medicamentos separados por coma"),
     refresh: bool = False
 ):
     start = time.time()
     productos = [p.strip() for p in q.replace("\n", ",").split(",") if p.strip()][:10]
-
 
     # Ejecutar la búsqueda de todos los medicamentos en paralelo controlado
     tasks = [buscar_un_producto(p, force_refresh=bool(refresh)) for p in productos]
@@ -204,6 +258,29 @@ async def buscar_receta(
                 todos_cacheados = False
 
     elapsed = round(time.time() - start, 2)
+
+    # Telemetria & Seguridad en Background (Supabase + Memory)
+    client_ip = request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for") or (request.client.host if request.client else "unknown")
+    client_ip = client_ip.split(",")[0].strip()
+    country = request.headers.get("cf-ipcountry", "CL")
+    city = request.headers.get("cf-ipcity", "Unknown")
+    ua = request.headers.get("user-agent", "")
+
+    background_tasks.add_task(_record_visit_and_check_block, client_ip, country, city, ua)
+    min_p, max_p, winner = _extract_analytics_summary(res_final)
+    background_tasks.add_task(
+        db.log_search,
+        ip=client_ip,
+        raw_query=q,
+        is_cached=todos_cacheados and len(res_final) > 0,
+        response_time_ms=int(elapsed * 1000),
+        status="SUCCESS" if res_final else "NO_RESULTS",
+        cheapest_pharmacy=winner,
+        min_price=min_p,
+        max_price=max_p,
+        session_id=request.headers.get("x-session-id")
+    )
+
     return {
         "status": "ok",
         "total_medicamentos": len(res_final),
@@ -211,6 +288,7 @@ async def buscar_receta(
         "cached": todos_cacheados and len(res_final) > 0,
         "elapsed_seconds": elapsed
     }
+
 
 
 @app.get("/api/cache/status")
@@ -246,12 +324,24 @@ async def cache_warmup(background_tasks: BackgroundTasks):
     background_tasks.add_task(precargar_medicamentos)
     return {"status": "ok", "message": "Precarga de catálogo iniciada en segundo plano"}
 
-# Montar frontend para pruebas locales inmediatas en http://localhost:8000
-FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend")
-if os.path.exists(FRONTEND_DIR):
-    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
 
 
+
+@app.post("/api/cache/reset")
+def cache_reset():
+    """Respalda la caché actual y crea una nueva desde 0."""
+    import os
+    import shutil
+    import datetime
+    from backend.cache import DB_PATH, init_db
+    
+    backup_path = f"{DB_PATH}.backup_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    if os.path.exists(DB_PATH):
+        shutil.copy2(DB_PATH, backup_path)
+        os.remove(DB_PATH)
+        
+    init_db()
+    return {"status": "ok", "message": "Caché reiniciada desde cero.", "backup_file": backup_path}
 
 @app.get("/api/visitas")
 def get_visits():
@@ -310,7 +400,10 @@ async def track_search_event(event: SearchEvent, request: Request):
     return {"status": "ok"}
 
 @app.post("/api/analytics/click")
-async def track_click_event(event: ClickEvent):
+async def track_click_event(event: ClickEvent, request: Request, background_tasks: BackgroundTasks):
+    client_ip = request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for") or (request.client.host if request.client else "unknown")
+    client_ip = client_ip.split(",")[0].strip()
+
     record_click(
         medicine=event.medicine,
         pharmacy=event.pharmacy,
@@ -318,7 +411,17 @@ async def track_click_event(event: ClickEvent):
         url=event.url,
         is_cheapest=event.is_cheapest
     )
+    background_tasks.add_task(
+        db.record_click,
+        medicine=event.medicine,
+        pharmacy=event.pharmacy,
+        price=event.price,
+        url=event.url,
+        is_cheapest=event.is_cheapest,
+        ip=client_ip
+    )
     return {"status": "ok"}
+
 
 @app.get("/api/admin/metrics")
 def get_metrics_json():
@@ -453,3 +556,9 @@ async def trigger_qa_audit():
         "status": "disabled",
         "message": "⛔ QA audit desactivado hasta integrar proxies residenciales."
     }
+
+# Montar frontend estático al final para no interferir con endpoints API
+FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend")
+if os.path.exists(FRONTEND_DIR):
+    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
+
