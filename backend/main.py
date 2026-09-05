@@ -252,7 +252,7 @@ async def buscar(
         max_price=max_p,
         session_id=request.headers.get("x-session-id"),
         total_results=len(results_list),
-        results_json=results_list
+        raw_products_json=results_list
     )
 
     return {
@@ -312,7 +312,7 @@ async def buscar_receta(
         max_price=max_p,
         session_id=request.headers.get("x-session-id"),
         total_results=total_found,
-        results_json=res_final
+        raw_products_json=res_final
     )
 
 
