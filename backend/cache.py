@@ -227,7 +227,13 @@ def save_cached_results(query: str, data: Dict[str, Any], custom_expires_at: Opt
         return
 
     norm_query = _normalize_query(query)
+    # CANDADO DE COHERENCIA: Consulta de al menos 3 caracteres alfanumericos
+    if len(norm_query) < 3 or not any(c.isalnum() for c in norm_query):
+        print(f"  [CACHE GUARD] Ignorando guardado para '{query}': consulta incoherente o demasiado corta.")
+        return
+
     cobertura = data.get("cobertura", {}) if isinstance(data, dict) else {}
+
     payload = json.dumps({
         "resultados": clean_results,
         "cobertura": cobertura
