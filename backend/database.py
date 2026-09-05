@@ -49,18 +49,19 @@ def parse_user_agent(ua_string: str) -> Tuple[bool, str]:
         
     return is_mobile, os_name
 
-def record_client_visit(ip: str, country: str = "CL", city: str = "Unknown", user_agent: str = "") -> bool:
+def record_client_visit(ip: str, country: str = "CL", city: str = "Unknown", user_agent: str = "") -> Tuple[bool, Optional[float]]:
     """
     Registra o actualiza la visita del cliente en security_ips.
-    Retorna True si el cliente esta BLOQUEADO, False si puede continuar.
+    Retorna (is_blocked, unblock_timestamp_unix).
     """
     conn = _get_connection()
     if not conn:
-        return False
-        
+        return False, None
+
     is_mobile, os_name = parse_user_agent(user_agent)
     is_blocked = False
-    
+    unblock_ts = None
+
     try:
         with conn.cursor() as cur:
             cur.execute("""
@@ -74,23 +75,75 @@ def record_client_visit(ip: str, country: str = "CL", city: str = "Unknown", use
                     city = COALESCE(NULLIF(EXCLUDED.city, 'Unknown'), security_ips.city)
                 RETURNING is_blocked, blocked_until;
             """, (ip, country or "CL", city or "Unknown", user_agent or "", is_mobile, os_name))
-            
+
             row = cur.fetchone()
             if row:
                 blocked_flag, blocked_until = row
-                if blocked_flag:
-                    if blocked_until and blocked_until < datetime.now(blocked_until.tzinfo):
-                        # El bloqueo ya expiro
-                        is_blocked = False
-                    else:
+                if blocked_flag and blocked_until:
+                    now_tz = datetime.now(blocked_until.tzinfo)
+                    if blocked_until > now_tz:
                         is_blocked = True
+                        unblock_ts = blocked_until.timestamp()
+                    else:
+                        is_blocked = False
         conn.commit()
     except Exception as e:
         logger.error(f"[DB RECORD VISIT ERROR] {e}")
     finally:
         conn.close()
-        
-    return is_blocked
+
+    return is_blocked, unblock_ts
+
+def block_ip(ip: str, hours: int = 1, reason: str = "RATE_LIMIT_EXCEEDED") -> Optional[float]:
+    """Registra y persiste el bloqueo de una IP en Supabase con fecha de expiracion."""
+    conn = _get_connection()
+    if not conn:
+        return None
+    unblock_ts = None
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO security_ips (ip_address, is_blocked, blocked_until, block_reason, first_seen_at, last_seen_at, request_count)
+                VALUES (%s, TRUE, NOW() + (%s * INTERVAL '1 hour'), %s, NOW(), NOW(), 1)
+                ON CONFLICT (ip_address) DO UPDATE SET
+                    is_blocked = TRUE,
+                    blocked_until = NOW() + (%s * INTERVAL '1 hour'),
+                    block_reason = EXCLUDED.block_reason,
+                    last_seen_at = NOW()
+                RETURNING blocked_until;
+            """, (ip, hours, reason, hours))
+            row = cur.fetchone()
+            if row and row[0]:
+                unblock_ts = row[0].timestamp()
+        conn.commit()
+    except Exception as e:
+        logger.error(f"[DB BLOCK IP ERROR] {e}")
+    finally:
+        conn.close()
+    return unblock_ts
+
+def get_active_blocked_ips() -> Dict[str, float]:
+    """Recupera todas las IPs actualmente bloqueadas y sus timestamps de desbloqueo desde Supabase."""
+    conn = _get_connection()
+    if not conn:
+        return {}
+    blocked_dict = {}
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT ip_address, blocked_until
+                FROM security_ips
+                WHERE is_blocked = TRUE AND blocked_until > NOW();
+            """)
+            for ip, until in cur.fetchall():
+                if until:
+                    blocked_dict[ip] = until.timestamp()
+    except Exception as e:
+        logger.error(f"[DB GET BLOCKED IPS ERROR] {e}")
+    finally:
+        conn.close()
+    return blocked_dict
+
 
 def log_search(
     ip: str,
