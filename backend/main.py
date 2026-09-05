@@ -239,17 +239,20 @@ async def buscar(
 
     background_tasks.add_task(_record_visit_and_check_block, client_ip, country, city, ua)
     min_p, max_p, winner = _extract_analytics_summary([data])
+    results_list = data.get("resultados", [])
     background_tasks.add_task(
         db.log_search,
         ip=client_ip,
         raw_query=q,
         is_cached=data.get("cached", False),
         response_time_ms=int(elapsed * 1000),
-        status="SUCCESS" if data.get("resultados") else "NO_RESULTS",
+        status="SUCCESS" if results_list else "NO_RESULTS",
         cheapest_pharmacy=winner,
         min_price=min_p,
         max_price=max_p,
-        session_id=request.headers.get("x-session-id")
+        session_id=request.headers.get("x-session-id"),
+        total_results=len(results_list),
+        results_json=results_list
     )
 
     return {
@@ -296,18 +299,22 @@ async def buscar_receta(
 
     background_tasks.add_task(_record_visit_and_check_block, client_ip, country, city, ua)
     min_p, max_p, winner = _extract_analytics_summary(res_final)
+    total_found = sum(len(r.get("resultados", [])) for r in res_final if isinstance(r, dict))
     background_tasks.add_task(
         db.log_search,
         ip=client_ip,
         raw_query=q,
         is_cached=todos_cacheados and len(res_final) > 0,
         response_time_ms=int(elapsed * 1000),
-        status="SUCCESS" if res_final else "NO_RESULTS",
+        status="SUCCESS" if total_found > 0 else "NO_RESULTS",
         cheapest_pharmacy=winner,
         min_price=min_p,
         max_price=max_p,
-        session_id=request.headers.get("x-session-id")
+        session_id=request.headers.get("x-session-id"),
+        total_results=total_found,
+        results_json=res_final
     )
+
 
     return {
         "status": "ok",
