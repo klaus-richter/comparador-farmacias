@@ -144,6 +144,26 @@ def get_active_blocked_ips() -> Dict[str, float]:
         conn.close()
     return blocked_dict
 
+def unblock_ip(ip: str) -> bool:
+    """Desbloquea una IP en Supabase limpiando su estado de bloqueo y contador."""
+    conn = _get_connection()
+    if not conn:
+        return False
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE security_ips
+                SET is_blocked = FALSE, blocked_until = NULL, block_reason = NULL, request_count = 0
+                WHERE ip_address = %s;
+            """, (ip,))
+        conn.commit()
+        return True
+    except Exception as e:
+        logger.error(f"[DB UNBLOCK IP ERROR] {e}")
+        return False
+    finally:
+        conn.close()
+
 
 def log_search(
     ip: str,
