@@ -1,7 +1,54 @@
-// Configuración de API (soporta local y despliegue en Google Cloud Run para GitHub Pages)
-const API = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" 
+// Configuración de API con Redundancia Automática (Principal: Render, Backup: Google Cloud Run)
+const PRIMARY_API = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" 
     ? "http://localhost:8000" 
+    : "https://comparador-farmacias-1.onrender.com";
+
+const BACKUP_API = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+    ? "http://localhost:8000"
     : "https://comparador-backend-201153254876.us-central1.run.app";
+
+let activeApiBase = PRIMARY_API;
+const API = PRIMARY_API;
+
+/**
+ * Cliente HTTP resiliente con Failover Automático:
+ * 1. Consulta primero al servidor Principal (Render).
+ * 2. Si falla por red o responde 502/503, conmuta al Backup (Cloud Run) de forma transparente.
+ */
+async function apiFetch(pathAndQuery, options = {}) {
+  const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+  if (isLocal) {
+    return fetch(`http://localhost:8000${pathAndQuery}`, options);
+  }
+
+  const primary = activeApiBase;
+  const secondary = (primary === PRIMARY_API) ? BACKUP_API : PRIMARY_API;
+
+  try {
+    const res = await fetch(`${primary}${pathAndQuery}`, options);
+    if ((res.status === 502 || res.status === 503) && primary !== secondary) {
+      console.warn(`[Failover] ${primary} respondió ${res.status}. Conmutando automáticamente a ${secondary}...`);
+      const fallbackRes = await fetch(`${secondary}${pathAndQuery}`, options);
+      if (fallbackRes.ok || fallbackRes.status === 429) {
+        activeApiBase = secondary;
+        return fallbackRes;
+      }
+    }
+    return res;
+  } catch (err) {
+    if (primary !== secondary) {
+      console.warn(`[Failover] Error de conexión con ${primary}. Conmutando automáticamente a ${secondary}...`, err);
+      try {
+        const fallbackRes = await fetch(`${secondary}${pathAndQuery}`, options);
+        activeApiBase = secondary;
+        return fallbackRes;
+      } catch (fallbackErr) {
+        throw fallbackErr;
+      }
+    }
+    throw err;
+  }
+}
 
 
 const statusBar = document.getElementById("status-bar");
@@ -715,7 +762,7 @@ searchForm.addEventListener("submit", async (e) => {
   const minWaitPromise = new Promise(resolve => setTimeout(resolve, 2000));
 
   try {
-    const fetchPromise = fetch(`${API}/api/buscar-receta?q=${encodeURIComponent(queryItems.join(","))}`)
+    const fetchPromise = apiFetch(`/api/buscar-receta?q=${encodeURIComponent(queryItems.join(","))}`)
       .then(async res => {
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
@@ -757,12 +804,12 @@ async function checkIpBlockOnLoad() {
     if (saved) {
       showSearchBannerAlert(saved, false, 0, true);
     }
-    const res = await fetch(`${API}/api/security/status?_t=${Date.now()}`);
-    if (res.status === 429) {
+    const res = await apiFetch(`/api/security/status?_t=${Date.now()}`).catch(() => null);
+    if (res && res.status === 429) {
       const data = await res.json().catch(() => ({}));
       const msg = data.detail || "Has superado el límite de consultas permitidas.";
       showSearchBannerAlert(msg, false, 0, true);
-    } else if (res.ok) {
+    } else if (res && res.ok) {
       try {
         localStorage.removeItem("quefarmacia_blocked_msg");
         sessionStorage.removeItem("quefarmacia_blocked_msg");
@@ -798,7 +845,7 @@ function trackSearchEvent(receta, queryList, elapsedSecs) {
     const winnerTotalEl = document.querySelector('.winner .total-amount, .winner .pharmacy-total');
     const winnerPrice = winnerTotalEl ? winnerTotalEl.innerText.trim() : null;
 
-    fetch(`${API_BASE_URL}/api/analytics/search`, {
+    apiFetch('/api/analytics/search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -816,7 +863,7 @@ function trackSearchEvent(receta, queryList, elapsedSecs) {
 
 function trackClickEvent(medicineName, pharmacyName, price, url, isCheapest) {
   try {
-    fetch(`${API_BASE_URL}/api/analytics/click`, {
+    apiFetch('/api/analytics/click', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
